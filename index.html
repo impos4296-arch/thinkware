@@ -490,11 +490,101 @@
     color: var(--text-muted);
     line-height: 1.7;
   }
+
+  /* 비밀번호 잠금 화면 */
+  .wrap { display: none; }
+  .wrap.unlocked { display: block; }
+  .pw-gate {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--page);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .pw-gate.hidden { display: none; }
+  .pw-gate-card {
+    width: 100%; max-width: 360px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 30px 26px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.14);
+    text-align: center;
+  }
+  .pw-gate-card p.eyebrow { margin: 0 0 6px; }
+  .pw-gate-card h2 { margin: 4px 0 20px; font-size: 19px; }
+  .pw-gate-card input[type="password"] {
+    width: 100%; box-sizing: border-box; padding: 11px 14px;
+    border: 1px solid var(--border-strong); border-radius: 9px;
+    font-size: 15px; margin-bottom: 10px; background: var(--input-bg);
+    color: var(--text-primary); font-family: inherit;
+  }
+  .pw-gate-card button {
+    width: 100%; padding: 11px 14px; border: none; border-radius: 9px;
+    background: var(--accent-3pl); color: #fff; font-size: 15px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+  .pw-gate-error {
+    color: #d5495c; font-size: 13px; margin: 10px 0 0; min-height: 16px;
+  }
 </style>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="pw-gate" id="pw-gate">
+  <div class="pw-gate-card">
+    <p class="eyebrow">Thinkware Mobile · 재고 리포트</p>
+    <h2>비밀번호를 입력하세요</h2>
+    <input type="password" id="pw-gate-input" placeholder="비밀번호" autocomplete="off" />
+    <button type="button" id="pw-gate-btn">확인</button>
+    <p class="pw-gate-error" id="pw-gate-error"></p>
+  </div>
+</div>
+<script>
+  (function () {
+    var PW = 'Thinkware2026';
+
+    function init() {
+      var gate = document.getElementById('pw-gate');
+      var wrap = document.querySelector('.wrap');
+      var input = document.getElementById('pw-gate-input');
+      var btn = document.getElementById('pw-gate-btn');
+      var err = document.getElementById('pw-gate-error');
+
+      function unlock() {
+        gate.classList.add('hidden');
+        if (wrap) wrap.classList.add('unlocked');
+        try { sessionStorage.setItem('tw_unlocked', '1'); } catch (e) {}
+      }
+      function tryUnlock() {
+        if (input.value === PW) {
+          unlock();
+        } else {
+          err.textContent = '비밀번호가 올바르지 않습니다.';
+          input.value = '';
+          input.focus();
+        }
+      }
+      var already = false;
+      try { already = sessionStorage.getItem('tw_unlocked') === '1'; } catch (e) {}
+      if (already) {
+        unlock();
+      } else {
+        input.focus();
+      }
+      btn.addEventListener('click', tryUnlock);
+      input.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryUnlock(); });
+    }
+
+    // .wrap 등 뒤쪽 요소가 아직 파싱되지 않았을 수 있으므로 DOM 완성 이후에 초기화한다.
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>
 
 <div class="wrap">
 
