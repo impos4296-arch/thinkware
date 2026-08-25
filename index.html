@@ -1,0 +1,506 @@
+<title>잔여재고 현황</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f7f6f1;
+    --surface: #ffffff;
+    --surface-2: #efece4;
+    --surface-3: #e7e3d8;
+    --border: rgba(22,22,15,0.10);
+    --border-strong: rgba(22,22,15,0.16);
+    --text-primary: #16160f;
+    --text-secondary: #55534a;
+    --text-muted: #8a8779;
+    --accent-tm: #1baf7a;
+    --accent-3pl: #2a78d6;
+    --accent-ubus: #eb6834;
+    --accent-import: #9a9689;
+    --accent-3pl-wash: #e8f0fb;
+    --accent-ubus-wash: #fdece3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0c0c0b;
+      --surface: #171714;
+      --surface-2: #201f1b;
+      --surface-3: #2a2924;
+      --border: rgba(255,255,255,0.10);
+      --border-strong: rgba(255,255,255,0.18);
+      --text-primary: #f6f5f0;
+      --text-secondary: #c3c2b7;
+      --text-muted: #918e80;
+      --accent-tm: #199e70;
+      --accent-3pl: #3987e5;
+      --accent-ubus: #d95926;
+      --accent-import: #938f81;
+      --accent-3pl-wash: #16233a;
+      --accent-ubus-wash: #33211a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0c0c0b;
+    --surface: #171714;
+    --surface-2: #201f1b;
+    --surface-3: #2a2924;
+    --border: rgba(255,255,255,0.10);
+    --border-strong: rgba(255,255,255,0.18);
+    --text-primary: #f6f5f0;
+    --text-secondary: #c3c2b7;
+    --text-muted: #918e80;
+    --accent-tm: #199e70;
+    --accent-3pl: #3987e5;
+    --accent-ubus: #d95926;
+    --accent-import: #938f81;
+    --accent-3pl-wash: #16233a;
+    --accent-ubus-wash: #33211a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: "Noto Sans KR", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header.top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .eyebrow {
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent-3pl);
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+
+  h1 {
+    font-family: "Gothic A1", "Noto Sans KR", sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 3.6vw, 38px);
+    line-height: 1.18;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .top-meta {
+    text-align: right;
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+  .top-meta strong { color: var(--text-secondary); font-weight: 600; }
+
+  section { margin-bottom: 52px; }
+
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  h2 {
+    font-family: "Gothic A1", "Noto Sans KR", sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .section-sub {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  /* Hero total */
+  .hero {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px 40px;
+    align-items: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px 30px;
+    margin-bottom: 20px;
+  }
+  .hero-figure { min-width: 220px; }
+  .hero-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 6px;
+  }
+  .hero-value {
+    font-family: "Gothic A1", "Noto Sans KR", sans-serif;
+    font-weight: 800;
+    font-size: clamp(36px, 5vw, 52px);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-value .unit { font-size: 0.42em; font-weight: 700; color: var(--text-secondary); margin-left: 6px; }
+  .hero-split {
+    display: flex;
+    flex: 1;
+    min-width: 260px;
+    gap: 0;
+    border-radius: 10px;
+    overflow: hidden;
+    height: 14px;
+    border: 1px solid var(--border);
+  }
+  .hero-split span { display: block; height: 100%; }
+  .hero-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    width: 100%;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+  .hero-legend .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 6px; }
+  .hero-legend b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* KPI tiles */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  @media (max-width: 860px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 18px 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--bar-color, var(--accent-3pl));
+  }
+  .kpi-name { font-size: 13px; color: var(--text-muted); margin: 0 0 8px; }
+  .kpi-value {
+    font-family: "Gothic A1", "Noto Sans KR", sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    font-variant-numeric: tabular-nums;
+    margin: 0 0 6px;
+  }
+  .kpi-value .unit { font-size: 13px; font-weight: 600; color: var(--text-muted); margin-left: 3px; }
+  .kpi-note { font-size: 12.5px; color: var(--text-secondary); }
+  .kpi-note b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  /* Warehouse compare cards */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 860px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  .wh-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 22px 24px 24px;
+  }
+  .wh-card.pl3 { border-top: 3px solid var(--accent-3pl); }
+  .wh-card.ubus { border-top: 3px solid var(--accent-ubus); }
+
+  .wh-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .wh-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 3px 9px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .wh-tag.pl3 { background: var(--accent-3pl-wash); color: var(--accent-3pl); }
+  .wh-tag.ubus { background: var(--accent-ubus-wash); color: var(--accent-ubus); }
+  .wh-title { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 19px; margin: 0 0 2px; }
+  .wh-desc { font-size: 13.5px; color: var(--text-secondary); margin: 0 0 18px; line-height: 1.55; }
+
+  .wh-total { text-align: right; }
+  .wh-total .n { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 24px; font-variant-numeric: tabular-nums; }
+  .wh-total .l { font-size: 11.5px; color: var(--text-muted); }
+
+  .bar-list { display: flex; flex-direction: column; gap: 11px; margin: 4px 0 16px; }
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+  .bar-row .name { font-size: 13px; color: var(--text-primary); }
+  .bar-row .value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+  .bar-track {
+    grid-column: 1 / -1;
+    height: 8px;
+    border-radius: 5px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .bar-fill { height: 100%; border-radius: 5px; }
+
+  .wh-foot {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-strong);
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+  .wh-foot b { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  .diff-note {
+    margin-top: 18px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+  .diff-note b { color: var(--text-primary); }
+
+  /* TM category chart */
+  .cat-chart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 26px 20px;
+  }
+  .cat-row { display: grid; grid-template-columns: 118px 1fr auto; gap: 12px; align-items: center; padding: 7px 0; }
+  .cat-row .cat-name { font-size: 13.5px; color: var(--text-primary); }
+  .cat-row .cat-track { height: 20px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+  .cat-row .cat-fill { height: 100%; border-radius: 5px; background: var(--accent-tm); }
+  .cat-row .cat-value { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; min-width: 68px; }
+  .cat-row .cat-value .pct { font-weight: 500; color: var(--text-muted); font-size: 11.5px; margin-left: 4px; }
+  @media (max-width: 640px) {
+    .cat-row { grid-template-columns: 84px 1fr auto; }
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+</style>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gothic+A1:wght@700;800;900&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <p class="eyebrow">Thinkware Mobile · 재고 리포트</p>
+      <h1>로보락 잔여재고 현황</h1>
+    </div>
+    <div class="top-meta">
+      기준일 <strong>2026년 8월 24일</strong><br>
+      데이터 출처: 팅크모바일 입출고 재고현황 · UBUS 입출고 현황
+    </div>
+  </header>
+
+  <section aria-labelledby="hero-head">
+    <div class="section-head">
+      <h2 id="hero-head">전체 잔여재고</h2>
+      <p class="section-sub">TM 자체창고 · 3PL · UBUS · 수입창고 합산 기준</p>
+    </div>
+    <div class="hero">
+      <div class="hero-figure">
+        <p class="hero-label">전체 재고 합계</p>
+        <div class="hero-value">174,769<span class="unit">개</span></div>
+      </div>
+      <div style="flex:1; min-width:260px; display:flex; flex-direction:column; gap:10px;">
+        <div class="hero-split">
+          <span style="width:76.8%; background:var(--accent-tm);"></span>
+          <span style="width:15.2%; background:var(--accent-3pl);"></span>
+          <span style="width:6.0%; background:var(--accent-ubus);"></span>
+          <span style="width:1.9%; background:var(--accent-import);"></span>
+        </div>
+        <div class="hero-legend">
+          <span><span class="dot" style="background:var(--accent-tm)"></span>TM 자체창고 <b>134,311</b> (76.8%)</span>
+          <span><span class="dot" style="background:var(--accent-3pl)"></span>3PL <b>26,603</b> (15.2%)</span>
+          <span><span class="dot" style="background:var(--accent-ubus)"></span>UBUS <b>10,562</b> (6.0%)</span>
+          <span><span class="dot" style="background:var(--accent-import)"></span>수입창고 <b>3,293</b> (1.9%)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi" style="--bar-color:var(--accent-tm)">
+        <p class="kpi-name">TM 자체창고</p>
+        <p class="kpi-value">134,311<span class="unit">개</span></p>
+        <p class="kpi-note">완제품 <b>25,818</b> · 부속품 <b>108,493</b></p>
+      </div>
+      <div class="kpi" style="--bar-color:var(--accent-3pl)">
+        <p class="kpi-name">3PL 창고</p>
+        <p class="kpi-value">26,603<span class="unit">개</span></p>
+        <p class="kpi-note">완제품 <b>6,990</b> · 부속품 <b>19,613</b></p>
+      </div>
+      <div class="kpi" style="--bar-color:var(--accent-ubus)">
+        <p class="kpi-name">UBUS 창고</p>
+        <p class="kpi-value">10,562<span class="unit">개</span></p>
+        <p class="kpi-note">완제품 <b>7,007</b> · 부속품 <b>3,555</b></p>
+      </div>
+      <div class="kpi" style="--bar-color:var(--accent-import)">
+        <p class="kpi-name">수입창고(입고대기)</p>
+        <p class="kpi-value">3,293<span class="unit">개</span></p>
+        <p class="kpi-note">완제품 <b>2,833</b> · 부속품 <b>460</b></p>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="compare-head">
+    <div class="section-head">
+      <h2 id="compare-head">창고별 출고 제품 구성</h2>
+      <p class="section-sub">3PL과 UBUS는 서로 다른 제품 라인을 전담 출하 · 완제품 재고 기준</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="wh-card pl3">
+        <div class="wh-head">
+          <div>
+            <span class="wh-tag pl3">3PL 창고</span>
+            <p class="wh-title">S10 시리즈 일반형 중심</p>
+            <p class="wh-desc">온라인·오프라인 일반 판매 채널로 출고되는 S10 MaxV Ultra·S9 MaxV Slim 일반형 재고</p>
+          </div>
+          <div class="wh-total"><div class="n">6,990</div><div class="l">완제품 재고(개)</div></div>
+        </div>
+        <div class="bar-list">
+          <div class="bar-row">
+            <span class="name">S10 MaxV Ultra 일반형 (화이트)</span>
+            <span class="value">5,044개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--accent-3pl);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S9 MaxV Slim 일반형</span>
+            <span class="value">1,354개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:26.8%; background:var(--accent-3pl);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S10 MaxV Ultra 일반형 (블랙)</span>
+            <span class="value">592개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:11.7%; background:var(--accent-3pl);"></div></div>
+          </div>
+        </div>
+        <div class="wh-foot"><span>부속품(세정제·악세서리키트 등)</span><b>19,613개</b></div>
+      </div>
+
+      <div class="wh-card ubus">
+        <div class="wh-head">
+          <div>
+            <span class="wh-tag ubus">UBUS 창고</span>
+            <p class="wh-title">전 모델 직배수 전용</p>
+            <p class="wh-desc">직배수(다이렉트 설치) 채널 전담 창고 · S8·S9·S10·Saros Z70 직배수형 재고</p>
+          </div>
+          <div class="wh-total"><div class="n">7,007</div><div class="l">완제품 재고(개)</div></div>
+        </div>
+        <div class="bar-list">
+          <div class="bar-row">
+            <span class="name">S10 MaxV Ultra 직배수 (화이트)</span>
+            <span class="value">2,090개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:100%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S9 MaxV Ultra 직배수 (화이트)</span>
+            <span class="value">1,014개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:48.5%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S9 MaxV Slim 직배수 (블랙)</span>
+            <span class="value">891개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:42.6%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S9 MaxV Ultra 직배수 (블랙)</span>
+            <span class="value">875개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:41.9%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S10 MaxV Slim 직배수 (블랙)</span>
+            <span class="value">823개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:39.4%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">S10 MaxV Ultra 직배수 (블랙)</span>
+            <span class="value">801개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:38.3%; background:var(--accent-ubus);"></div></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">기타 (Saros Z70 직배수·일반형 소량·리퍼 등 8종)</span>
+            <span class="value">513개</span>
+            <div class="bar-track"><div class="bar-fill" style="width:24.5%; background:var(--accent-ubus);"></div></div>
+          </div>
+        </div>
+        <div class="wh-foot"><span>부속품(클리너·악세서리키트 등)</span><b>3,555개</b></div>
+      </div>
+    </div>
+
+    <div class="diff-note">
+      <b>참고.</b> 3PL은 S10 MaxV Ultra·S9 MaxV Slim의 <b>일반형</b>만 재고로 보유하며 온라인·오프라인 채널로 출고됩니다.
+      UBUS는 S8·S9·S10·Saros Z70 전 모델의 <b>직배수형</b>을 전담 재고로 보유하며, 일반형 재고는 두 창고 소량(217개)만
+      예외적으로 보관 중입니다. 두 창고의 소진 속도는 각 판매 채널의 수요에 따라 별도로 관리할 필요가 있습니다.
+    </div>
+  </section>
+
+  <section aria-labelledby="tm-cat-head">
+    <div class="section-head">
+      <h2 id="tm-cat-head">TM 자체창고 제품군별 재고</h2>
+      <p class="section-sub">완제품·부속품 합산 · 상위 8개 제품군 + 기타</p>
+    </div>
+    <div class="cat-chart">
+      <div class="cat-row"><span class="cat-name">로봇청소기</span><div class="cat-track"><div class="cat-fill" style="width:100%"></div></div><span class="cat-value">95,332</span></div>
+      <div class="cat-row"><span class="cat-name">음식물처리기</span><div class="cat-track"><div class="cat-fill" style="width:13.4%"></div></div><span class="cat-value">12,754</span></div>
+      <div class="cat-row"><span class="cat-name">무선청소기</span><div class="cat-track"><div class="cat-fill" style="width:5.5%"></div></div><span class="cat-value">5,196</span></div>
+      <div class="cat-row"><span class="cat-name">액세서리</span><div class="cat-track"><div class="cat-fill" style="width:5.1%"></div></div><span class="cat-value">4,819</span></div>
+      <div class="cat-row"><span class="cat-name">스마트워치</span><div class="cat-track"><div class="cat-fill" style="width:3.1%"></div></div><span class="cat-value">2,992</span></div>
+      <div class="cat-row"><span class="cat-name">드라이기</span><div class="cat-track"><div class="cat-fill" style="width:3.1%"></div></div><span class="cat-value">2,908</span></div>
+      <div class="cat-row"><span class="cat-name">스마트폰</span><div class="cat-track"><div class="cat-fill" style="width:2.4%"></div></div><span class="cat-value">2,271</span></div>
+      <div class="cat-row"><span class="cat-name">블랙박스</span><div class="cat-track"><div class="cat-fill" style="width:2.0%"></div></div><span class="cat-value">1,871</span></div>
+      <div class="cat-row"><span class="cat-name">기타 9개 품목군</span><div class="cat-track"><div class="cat-fill" style="width:6.5%; background:var(--text-muted);"></div></div><span class="cat-value">6,168</span></div>
+    </div>
+  </section>
+
+  <footer>
+    수량 단위: 개(EA), 완제품 + 부속품(ACC) 합산. 3PL·UBUS 완제품 구분은 창고별 출고 실적 기준으로 분류.<br>
+    TM 자체창고 · 3PL · 수입창고 데이터는 「2026년 8월 팅크모바일 입·출고 재고현황」, UBUS 창고 데이터는 「26년 8월 UBUS 입출고 현황」 기준.<br>
+    작성: 팅크웨어모바일 영업관리팀
+  </footer>
+
+</div>
