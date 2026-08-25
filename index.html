@@ -878,6 +878,33 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
 
   const brandOrder = Object.keys(catalog).sort((a,b)=> (brandTotals[b]||0) - (brandTotals[a]||0));
 
+  // 품목 나열 우선순위: 로보락(로봇청소기 S10→S9→S8→S7, Stand 청소기, 세탁건조기) → 샤오미 → 블루벤트 → 라이펀 → 그외
+  // (2026-08-25 사용자 지시). 나머지 브랜드/카테고리/시리즈는 명시적 순서가 없으므로 동순위(0)로 취급해
+  // 수량 내림차순(2차 정렬 기준)이 그대로 유지된다.
+  const BRAND_ORDER = ['로보락', '샤오미', '블루벤트', '라이펀', '그외'];
+  const CATEGORY_ORDER = { '로보락': ['로봇청소기', 'Stand 청소기', '세탁건조기'] };
+  const SERIES_ORDER = { '로봇청소기': ['S10', 'S9', 'S8', 'S7'] };
+  function priorityRank(brand, major, series) {
+    const bi = BRAND_ORDER.indexOf(brand);
+    const brandRank = bi === -1 ? BRAND_ORDER.length : bi;
+    const catList = CATEGORY_ORDER[brand];
+    const ci = catList ? catList.indexOf(major) : -1;
+    const catRank = catList ? (ci === -1 ? catList.length : ci) : 0;
+    const serList = SERIES_ORDER[major];
+    const si = serList ? serList.indexOf(series) : -1;
+    const serRank = serList ? (si === -1 ? serList.length : si) : 0;
+    return brandRank * 1e6 + catRank * 1e3 + serRank;
+  }
+  // 대상 목록을 브랜드→카테고리→시리즈 우선순위로 정렬하고, 같은 순위 안에서는 수량 내림차순(qtyOf)을 유지한다.
+  function sortByPriority(rows, qtyOf) {
+    return rows.slice().sort((a, b) => {
+      const pa = priorityRank(a.brand, a.major, a.series);
+      const pb = priorityRank(b.brand, b.major, b.series);
+      if (pa !== pb) return pa - pb;
+      return qtyOf(b) - qtyOf(a);
+    });
+  }
+
   const elWarehouse = document.getElementById('f-warehouse');
   const TM_SIDE = ['TM 자체창고', '3PL', '수입창고'];
   const PARTNER_SIDE = ['UBUS', '위니온', '세탁기'];
@@ -1072,7 +1099,7 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     const itemLegend = document.getElementById('item-legend');
     if (PARTNER_SIDE.includes(warehouse)) {
       const scoped = pinnedMatched.filter(u => u.source === warehouse);
-      const rows = scoped.filter(u=>u.cur>0).sort((a,b)=>b.cur-a.cur);
+      const rows = sortByPriority(scoped.filter(u=>u.cur>0), r => r.cur);
       const seg = SEG_OF_WAREHOUSE[warehouse];
       itemListHead.textContent = `품목별 잔여재고 (${warehouse}) · ${scoped.length}개 품목`;
       itemLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[warehouse]})"></i>${warehouse} <span class="pin-dot"></span></span>`;
@@ -1091,13 +1118,15 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     } else if (warehouse === 'TM 자체창고' || warehouse === '3PL' || warehouse === '수입창고') {
       const key = warehouse === 'TM 자체창고' ? 'tm' : (warehouse === '3PL' ? 'pl' : 'imp');
       const seg = SEG_OF_WAREHOUSE[warehouse];
-      const rows = idxs.map(i => ({
+      const rowsTop = idxs.map(i => ({
           name: items[i].name,
           val: key === 'imp' ? (items[i].imp||0) : dayArr[i][key === 'tm' ? 0 : 1],
+          brand: items[i].brand, major: items[i].major, series: items[i].series,
         }))
         .filter(r => r.val > 0)
         .sort((a,b) => b.val - a.val)
-        .slice(0, 10);
+        .slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.val);
       itemListHead.textContent = `품목별 잔여재고 (${warehouse}) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
       itemLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[warehouse]})"></i>${warehouse}</span>`;
       if (rows.length === 0) {
@@ -1114,10 +1143,11 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
       }
     } else {
       // warehouse === '전체': TM+3PL stacked, as before
-      const rows = idxs.map(i => ({ name: items[i].name, tm: dayArr[i][0], pl: dayArr[i][1] }))
+      const rowsTop = idxs.map(i => ({ name: items[i].name, tm: dayArr[i][0], pl: dayArr[i][1], brand: items[i].brand, major: items[i].major, series: items[i].series }))
         .filter(r => r.tm + r.pl > 0)
         .sort((a,b) => (b.tm+b.pl) - (a.tm+a.pl))
-        .slice(0, 10);
+        .slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.tm + r.pl);
       itemListHead.textContent =
         `품목별 잔여재고 (TM 자체창고 + 3PL) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
       itemLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span>`;
@@ -1150,10 +1180,11 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
       inboundBars.innerHTML = `<p class="empty-note">${warehouse}은(는) 입고 수량 데이터가 없습니다.</p>`;
     } else if (PARTNER_SIDE.includes(warehouse)) {
       const seg = SEG_OF_WAREHOUSE[warehouse];
-      const rows = pinnedMatched.filter(u => u.source === warehouse && (u.inbound||0) > 0)
-        .map(u => ({ name: u.name, val: u.inbound }))
+      const rowsTop = pinnedMatched.filter(u => u.source === warehouse && (u.inbound||0) > 0)
+        .map(u => ({ name: u.name, val: u.inbound, brand: u.brand, major: u.major, series: u.series }))
         .sort((a,b) => b.val - a.val)
-        .slice(0, 10);
+        .slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.val);
       inboundListHead.textContent = `제품별 이번 달 입고 수량 (${warehouse})`;
       inboundLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[warehouse]})"></i>${warehouse} 입고</span>`;
       if (rows.length === 0) {
@@ -1171,10 +1202,11 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     } else if (warehouse === 'TM 자체창고' || warehouse === '3PL') {
       const key = warehouse === 'TM 자체창고' ? 'inTm' : 'inPl';
       const seg = SEG_OF_WAREHOUSE[warehouse];
-      const rows = idxs.map(i => ({ name: items[i].name, val: items[i][key]||0 }))
+      const rowsTop = idxs.map(i => ({ name: items[i].name, val: items[i][key]||0, brand: items[i].brand, major: items[i].major, series: items[i].series }))
         .filter(r => r.val > 0)
         .sort((a,b) => b.val - a.val)
-        .slice(0, 10);
+        .slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.val);
       inboundListHead.textContent = `제품별 이번 달 입고 수량 (${warehouse})`;
       inboundLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[warehouse]})"></i>${warehouse} 입고</span>`;
       if (rows.length === 0) {
@@ -1191,10 +1223,11 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
       }
     } else {
       // warehouse === '전체': TM매입+교환반품(TM 자체창고 입고) + 3PL 입고, stacked
-      const rows = idxs.map(i => ({ name: items[i].name, inTm: items[i].inTm||0, inPl: items[i].inPl||0 }))
+      const rowsTop = idxs.map(i => ({ name: items[i].name, inTm: items[i].inTm||0, inPl: items[i].inPl||0, brand: items[i].brand, major: items[i].major, series: items[i].series }))
         .filter(r => r.inTm + r.inPl > 0)
         .sort((a,b) => (b.inTm+b.inPl) - (a.inTm+a.inPl))
-        .slice(0, 10);
+        .slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.inTm + r.inPl);
       inboundListHead.textContent = '제품별 이번 달 입고 수량 (TM 자체창고 + 3PL)';
       inboundLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span>`;
       if (rows.length === 0) {
