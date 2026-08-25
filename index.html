@@ -792,8 +792,8 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
   const TM_SIDE = ['TM 자체창고', '3PL', '수입창고'];
   const PARTNER_SIDE = ['UBUS', '위니온', '세탁기'];
   const WAREHOUSE_LOCK = {
-    '3PL': { brand: '로보락' },
-    'UBUS': { brand: '로보락' },
+    '3PL': { brand: '로보락', category: '로봇청소기' },
+    'UBUS': { brand: '로보락', category: '로봇청소기' },
     '위니온': { brand: '샤오미', category: 'TV' },
     '세탁기': { brand: '로보락', category: '세탁건조기' },
   };
@@ -936,14 +936,43 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
       : (sumByWarehouse[warehouse] || 0);
     const tileClass = name => 'esum-tile' + (warehouse === name ? ' active' : '');
 
+    // esum 타일 표시값: 창고=전체일 때는 모든 타일이 현재 브랜드/카테고리/시리즈/구분 필터를 그대로 반영한다(기존 탐색 기능 유지).
+    // 특정 창고를 선택하면(잠금 여부 무관 — TM 자체창고/수입창고 포함), 선택된 그 창고만 필터 조건(브랜드/카테고리/시리즈/구분)에 맞춰
+    // 조회된 수량을 보여주고, 나머지 창고 타일은 필터에 눌려 0이 되지 않도록 브랜드/카테고리/시리즈를 무시한 전체 수량(구분 토글만 반영)으로
+    // 보여주면서 하이라이팅만 된다. "선택 조건 합계" 타일은 항상 실제 필터 조건 그대로 유지.
+    const esumLockActive = warehouse !== '전체';
+    function esumTileSum(name) {
+      const useFull = esumLockActive && name !== warehouse;
+      const b = useFull ? '전체' : brand;
+      const c = useFull ? '전체' : category;
+      const s = useFull ? '전체' : series;
+      if (name === 'TM 자체창고' || name === '3PL' || name === '수입창고') {
+        let sum = 0;
+        items.forEach((it, i) => {
+          if (!matchesTm(it, b, c, s, kindMode)) return;
+          if (name === 'TM 자체창고') sum += dayArr[i][0];
+          else if (name === '3PL') sum += dayArr[i][1];
+          else sum += (it.imp || 0);
+        });
+        return sum;
+      }
+      return PINNED.filter(u => u.source === name && matchesPinned(u, b, c, s, kindMode)).reduce((s2,u)=>s2+u.cur,0);
+    }
+    const tmTile = esumTileSum('TM 자체창고');
+    const plTile = esumTileSum('3PL');
+    const impTile = esumTileSum('수입창고');
+    const ubusTile = esumTileSum('UBUS');
+    const weioneTile = esumTileSum('위니온');
+    const washerTile = esumTileSum('세탁기');
+
     const esum = document.getElementById('esum');
     esum.innerHTML = `
-      <div class="${tileClass('TM 자체창고')}"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmSum)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('3PL')}"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plSum)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(ubusSum)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 25일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneSum)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerSum)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('TM 자체창고')}"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('3PL')}"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 25일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
 
