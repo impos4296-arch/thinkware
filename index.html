@@ -157,11 +157,12 @@
 
   .filter-bar {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 12px;
     margin-bottom: 10px;
   }
-  @media (max-width: 900px) { .filter-bar { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 1100px) { .filter-bar { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 640px) { .filter-bar { grid-template-columns: repeat(2, 1fr); } }
 
   .field label {
     display: block;
@@ -247,6 +248,7 @@
     background: var(--surface-2);
   }
   .esum-tile.total { background: var(--accent-3pl-wash); border-color: transparent; }
+  .esum-tile.active { border-color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--text-primary); }
   .esum-name { font-size: 11.5px; color: var(--text-muted); margin: 0 0 5px; display:flex; align-items:center; gap:5px;}
   .esum-value { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
   .esum-value .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
@@ -277,6 +279,7 @@
   .stack-track .seg-ub { background: var(--accent-ubus); height:100%; }
   .stack-track .seg-we { background: var(--accent-weione); height:100%; }
   .stack-track .seg-wa { background: var(--accent-washer); height:100%; }
+  .stack-track .seg-imp { background: var(--accent-import); height:100%; }
 
   .empty-note {
     font-size: 13px;
@@ -508,11 +511,23 @@
   <section aria-labelledby="explorer-head">
     <div class="section-head">
       <h2 id="explorer-head">제품별 · 일자별 잔여재고 조회</h2>
-      <p class="section-sub">브랜드 → 카테고리 → 시리즈 순으로 좁혀서 날짜별 재고를 확인하세요</p>
+      <p class="section-sub">창고 → 브랜드 → 카테고리 → 시리즈 순으로 좁혀서 날짜별 재고를 확인하세요</p>
     </div>
 
     <div class="explorer">
       <div class="filter-bar">
+        <div class="field">
+          <label for="f-warehouse">창고</label>
+          <select id="f-warehouse">
+            <option value="전체">전체</option>
+            <option value="TM 자체창고">TM 자체창고</option>
+            <option value="3PL">3PL</option>
+            <option value="수입창고">수입창고</option>
+            <option value="UBUS">UBUS</option>
+            <option value="위니온">위니온</option>
+            <option value="세탁기">세탁기</option>
+          </select>
+        </div>
         <div class="field">
           <label for="f-brand">브랜드</label>
           <select id="f-brand"></select>
@@ -552,7 +567,7 @@
           </div>
         </div>
         <div class="explorer-col">
-          <h3>선택 구간 재고 추이 (8/1 – 8/24, TM+3PL 합계)</h3>
+          <h3 id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/24, TM+3PL 합계)</h3>
           <div class="trend-wrap">
             <div class="trend-head">
               <span class="lbl">선택한 조건의 일별 합계 추이</span>
@@ -776,6 +791,9 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
 
   const brandOrder = Object.keys(catalog).sort((a,b)=> (brandTotals[b]||0) - (brandTotals[a]||0));
 
+  const elWarehouse = document.getElementById('f-warehouse');
+  const TM_SIDE = ['TM 자체창고', '3PL', '수입창고'];
+  const PARTNER_SIDE = ['UBUS', '위니온', '세탁기'];
   const elBrand = document.getElementById('f-brand');
   const elCategory = document.getElementById('f-category');
   const elSeries = document.getElementById('f-series');
@@ -854,6 +872,7 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
 
   function render() {
     const brand = elBrand.value, category = elCategory.value, series = elSeries.value;
+    const warehouse = elWarehouse.value;
     const date = String(Number(elDate.value));
     elDateBadge.textContent = '2026-08-' + String(elDate.value).padStart(2,'0');
 
@@ -872,73 +891,130 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     const weioneSum = weioneMatched.reduce((s,u)=>s+u.cur,0);
     const washerSum = washerMatched.reduce((s,u)=>s+u.cur,0);
 
-    const total = tmSum + plSum + impSum + ubusSum + weioneSum + washerSum;
+    const sumByWarehouse = {
+      'TM 자체창고': tmSum, '3PL': plSum, '수입창고': impSum,
+      'UBUS': ubusSum, '위니온': weioneSum, '세탁기': washerSum,
+    };
+    const total = warehouse === '전체'
+      ? (tmSum + plSum + impSum + ubusSum + weioneSum + washerSum)
+      : (sumByWarehouse[warehouse] || 0);
+    const tileClass = name => 'esum-tile' + (warehouse === name ? ' active' : '');
 
     const esum = document.getElementById('esum');
     esum.innerHTML = `
-      <div class="esum-tile"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmSum)}<span class="unit">개</span></p></div>
-      <div class="esum-tile"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plSum)}<span class="unit">개</span></p></div>
-      <div class="esum-tile"><p class="esum-name">UBUS <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(ubusSum)}<span class="unit">개</span></p></div>
-      <div class="esum-tile"><p class="esum-name">위니온 <span class="pin-dot" title="8월 25일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneSum)}<span class="unit">개</span></p></div>
-      <div class="esum-tile"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerSum)}<span class="unit">개</span></p></div>
-      <div class="esum-tile"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('TM 자체창고')}"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('3PL')}"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(ubusSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 25일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerSum)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impSum)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
 
-    // item bar list (TM+3PL stacked), top 10 by combined qty
-    const rows = idxs.map(i => ({ name: items[i].name, tm: dayArr[i][0], pl: dayArr[i][1] }))
-      .filter(r => r.tm + r.pl > 0)
-      .sort((a,b) => (b.tm+b.pl) - (a.tm+a.pl))
-      .slice(0, 10);
+    // item bar list — driven by 창고 selection: TM+3PL 전체(stacked), or a single TM-side warehouse, or hidden when a partner warehouse is selected
     const itemBars = document.getElementById('item-bars');
-    document.getElementById('item-list-head').textContent =
-      `품목별 잔여재고 (TM 자체창고 + 3PL) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
-    if (rows.length === 0) {
-      itemBars.innerHTML = '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>';
+    const itemListHead = document.getElementById('item-list-head');
+    if (PARTNER_SIDE.includes(warehouse)) {
+      itemListHead.textContent = `품목별 잔여재고 — "${warehouse}"는 파트너 창고 스냅샷에서 확인하세요`;
+      itemBars.innerHTML = '<p class="empty-note">TM 자체창고/3PL/수입창고 품목 리스트가 아닙니다. 아래 파트너 창고 스냅샷을 확인하세요.</p>';
+    } else if (warehouse === 'TM 자체창고' || warehouse === '3PL' || warehouse === '수입창고') {
+      const key = warehouse === 'TM 자체창고' ? 'tm' : (warehouse === '3PL' ? 'pl' : 'imp');
+      const seg = warehouse === 'TM 자체창고' ? 'seg-tm' : (warehouse === '3PL' ? 'seg-pl' : 'seg-imp');
+      const rows = idxs.map(i => ({
+          name: items[i].name,
+          val: key === 'imp' ? (items[i].imp||0) : dayArr[i][key === 'tm' ? 0 : 1],
+        }))
+        .filter(r => r.val > 0)
+        .sort((a,b) => b.val - a.val)
+        .slice(0, 10);
+      itemListHead.textContent = `품목별 잔여재고 (${warehouse}) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
+      if (rows.length === 0) {
+        itemBars.innerHTML = '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>';
+      } else {
+        const max = Math.max(...rows.map(r=>r.val));
+        itemBars.innerHTML = rows.map(r => {
+          const w = Math.max(2, Math.round(r.val/max*100));
+          return `<div class="item-bar-row">
+            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
+            <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%"></div></div>
+          </div>`;
+        }).join('');
+      }
     } else {
-      const max = Math.max(...rows.map(r=>r.tm+r.pl));
-      itemBars.innerHTML = rows.map(r => {
-        const w = Math.max(2, Math.round((r.tm+r.pl)/max*100));
-        const tmW = (r.tm+r.pl) ? (r.tm/(r.tm+r.pl)*100) : 0;
-        const plW = 100 - tmW;
-        return `<div class="item-bar-row">
-          <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.tm+r.pl)}개</span></div>
-          <div class="stack-track" style="width:${w}%">
-            <div class="seg-tm" style="width:${tmW}%"></div>
-            <div class="seg-pl" style="width:${plW}%"></div>
-          </div>
-        </div>`;
-      }).join('');
+      // warehouse === '전체': TM+3PL stacked, as before
+      const rows = idxs.map(i => ({ name: items[i].name, tm: dayArr[i][0], pl: dayArr[i][1] }))
+        .filter(r => r.tm + r.pl > 0)
+        .sort((a,b) => (b.tm+b.pl) - (a.tm+a.pl))
+        .slice(0, 10);
+      itemListHead.textContent =
+        `품목별 잔여재고 (TM 자체창고 + 3PL) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
+      if (rows.length === 0) {
+        itemBars.innerHTML = '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>';
+      } else {
+        const max = Math.max(...rows.map(r=>r.tm+r.pl));
+        itemBars.innerHTML = rows.map(r => {
+          const w = Math.max(2, Math.round((r.tm+r.pl)/max*100));
+          const tmW = (r.tm+r.pl) ? (r.tm/(r.tm+r.pl)*100) : 0;
+          const plW = 100 - tmW;
+          return `<div class="item-bar-row">
+            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.tm+r.pl)}개</span></div>
+            <div class="stack-track" style="width:${w}%">
+              <div class="seg-tm" style="width:${tmW}%"></div>
+              <div class="seg-pl" style="width:${plW}%"></div>
+            </div>
+          </div>`;
+        }).join('');
+      }
     }
 
-    // pinned bars (UBUS + 위니온 + 세탁기 combined, sorted by qty)
-    const pinnedRows = pinnedMatched.filter(u=>u.cur>0).sort((a,b)=>b.cur-a.cur).slice(0,8);
+    // pinned bars — driven by 창고 selection: combined UBUS+위니온+세탁기, a single partner warehouse, or hidden when a TM-side warehouse is selected
     const ubusBars = document.getElementById('ubus-bars');
-    document.getElementById('ubus-list-head').textContent = `파트너 창고 스냅샷 (UBUS · 위니온 · 세탁기) · ${pinnedMatched.length}개 품목`;
-    if (pinnedRows.length === 0) {
-      ubusBars.innerHTML = '<p class="empty-note">해당 조건과 일치하는 파트너 창고 재고가 없습니다.</p>';
+    const ubusListHead = document.getElementById('ubus-list-head');
+    if (TM_SIDE.includes(warehouse)) {
+      ubusListHead.textContent = `파트너 창고 스냅샷 — "${warehouse}"는 왼쪽 품목 리스트에서 확인하세요`;
+      ubusBars.innerHTML = '<p class="empty-note">UBUS/위니온/세탁기 소스가 아닙니다. 왼쪽 품목별 잔여재고를 확인하세요.</p>';
     } else {
-      const maxU = Math.max(...pinnedRows.map(u=>u.cur));
-      const segOf = { 'UBUS': 'seg-ub', '위니온': 'seg-we', '세탁기': 'seg-wa' };
-      ubusBars.innerHTML = pinnedRows.map(u => {
-        const w = Math.max(2, Math.round(u.cur/maxU*100));
-        const seg = segOf[u.source] || 'seg-ub';
-        return `<div class="item-bar-row">
-          <div class="top"><span class="nm">[${u.source}] ${u.name}</span><span class="val">${fmt(u.cur)}개</span></div>
-          <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%"></div></div>
-        </div>`;
-      }).join('');
+      const scopedPinned = PARTNER_SIDE.includes(warehouse)
+        ? pinnedMatched.filter(u => u.source === warehouse)
+        : pinnedMatched;
+      const pinnedRows = scopedPinned.filter(u=>u.cur>0).sort((a,b)=>b.cur-a.cur).slice(0,8);
+      const headLabel = PARTNER_SIDE.includes(warehouse) ? warehouse : 'UBUS · 위니온 · 세탁기';
+      ubusListHead.textContent = `파트너 창고 스냅샷 (${headLabel}) · ${scopedPinned.length}개 품목`;
+      if (pinnedRows.length === 0) {
+        ubusBars.innerHTML = '<p class="empty-note">해당 조건과 일치하는 파트너 창고 재고가 없습니다.</p>';
+      } else {
+        const maxU = Math.max(...pinnedRows.map(u=>u.cur));
+        const segOf = { 'UBUS': 'seg-ub', '위니온': 'seg-we', '세탁기': 'seg-wa' };
+        ubusBars.innerHTML = pinnedRows.map(u => {
+          const w = Math.max(2, Math.round(u.cur/maxU*100));
+          const seg = segOf[u.source] || 'seg-ub';
+          return `<div class="item-bar-row">
+            <div class="top"><span class="nm">[${u.source}] ${u.name}</span><span class="val">${fmt(u.cur)}개</span></div>
+            <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%"></div></div>
+          </div>`;
+        }).join('');
+      }
     }
 
-    // trend (TM+3PL only, across all days)
+    // trend — TM+3PL by default; a single TM-side warehouse narrows the trend to just that source
+    const trendTitle = document.getElementById('trend-head-title');
+    let trendLabel = 'TM+3PL 합계', trendKey = 'both';
+    if (warehouse === 'TM 자체창고') { trendLabel = 'TM 자체창고'; trendKey = 'tm'; }
+    else if (warehouse === '3PL') { trendLabel = '3PL'; trendKey = 'pl'; }
+    trendTitle.textContent = `선택 구간 재고 추이 (8/1 – 8/24, ${trendLabel})`;
     const trendPoints = dayKeys.map(d => {
       const arr = days[String(d)];
       let s = 0;
-      idxs.forEach(i => { s += arr[i][0] + arr[i][1]; });
+      idxs.forEach(i => {
+        if (trendKey === 'tm') s += arr[i][0];
+        else if (trendKey === 'pl') s += arr[i][1];
+        else s += arr[i][0] + arr[i][1];
+      });
       return s;
     });
     renderTrend(trendPoints, dayKeys);
-    document.getElementById('trend-now').textContent = fmt(tmSum+plSum) + '개';
+    const trendNow = trendKey === 'tm' ? tmSum : (trendKey === 'pl' ? plSum : tmSum+plSum);
+    document.getElementById('trend-now').textContent = fmt(trendNow) + '개';
   }
 
   function renderTrend(points, dayKeys) {
@@ -972,6 +1048,7 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     `;
   }
 
+  elWarehouse.addEventListener('change', render);
   elBrand.addEventListener('change', () => { fillCategory(); fillSeries(); render(); });
   elCategory.addEventListener('change', () => { fillSeries(); render(); });
   elSeries.addEventListener('change', render);
