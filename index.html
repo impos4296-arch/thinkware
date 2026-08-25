@@ -876,12 +876,10 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
   });
   PINNED.forEach(u => addToCatalog(u, u.cur));
 
-  const brandOrder = Object.keys(catalog).sort((a,b)=> (brandTotals[b]||0) - (brandTotals[a]||0));
-
-  // 품목 나열 우선순위: 로보락(로봇청소기 S10→S9→S8→S7, Stand 청소기, 세탁건조기) → 샤오미 → 블루벤트 → 라이펀 → 그외
+  // 품목 나열 우선순위: 로보락(로봇청소기 S10→S9→S8→S7, Stand 청소기, 세탁건조기) → 블루벤트 → 샤오미 → 라이펀 → 그외
   // (2026-08-25 사용자 지시). 나머지 브랜드/카테고리/시리즈는 명시적 순서가 없으므로 동순위(0)로 취급해
   // 수량 내림차순(2차 정렬 기준)이 그대로 유지된다.
-  const BRAND_ORDER = ['로보락', '샤오미', '블루벤트', '라이펀', '그외'];
+  const BRAND_ORDER = ['로보락', '블루벤트', '샤오미', '라이펀', '그외'];
   const CATEGORY_ORDER = { '로보락': ['로봇청소기', 'Stand 청소기', '세탁건조기'] };
   const SERIES_ORDER = { '로봇청소기': ['S10', 'S9', 'S8', 'S7'] };
   function priorityRank(brand, major, series) {
@@ -894,6 +892,15 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     const si = serList ? serList.indexOf(series) : -1;
     const serRank = serList ? (si === -1 ? serList.length : si) : 0;
     return brandRank * 1e6 + catRank * 1e3 + serRank;
+  }
+  // 카테고리 드롭다운 정렬용(시리즈 무시): 브랜드→카테고리 우선순위만 계산 (2026-08-25 추가)
+  function categoryRank(brand, major) {
+    const bi = BRAND_ORDER.indexOf(brand);
+    const brandRank = bi === -1 ? BRAND_ORDER.length : bi;
+    const catList = CATEGORY_ORDER[brand];
+    const ci = catList ? catList.indexOf(major) : -1;
+    const catRank = catList ? (ci === -1 ? catList.length : ci) : 0;
+    return brandRank * 1e3 + catRank;
   }
   // 대상 목록을 브랜드→카테고리→시리즈 우선순위로 정렬하고, 같은 순위 안에서는 수량 내림차순(qtyOf)을 유지한다.
   function sortByPriority(rows, qtyOf) {
@@ -933,7 +940,16 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
   function fillBrand() {
     elBrand.innerHTML = '';
     opt(elBrand, '전체', '전체');
-    brandOrder.forEach(b => opt(elBrand, b, b));
+    // 2026-08-25: 수량순이 아니라 고정 업무 우선순위(BRAND_ORDER: 로보락→블루벤트→샤오미→라이펀→그외)로 정렬.
+    // BRAND_ORDER에 없는 브랜드가 나타나면(신규 브랜드) 맨 뒤에 수량 내림차순으로 붙는다.
+    const ordered = Object.keys(catalog).slice().sort((a, b) => {
+      const ai = BRAND_ORDER.indexOf(a), bi = BRAND_ORDER.indexOf(b);
+      const ar = ai === -1 ? BRAND_ORDER.length : ai;
+      const br = bi === -1 ? BRAND_ORDER.length : bi;
+      if (ar !== br) return ar - br;
+      return (brandTotals[b] || 0) - (brandTotals[a] || 0);
+    });
+    ordered.forEach(b => opt(elBrand, b, b));
   }
 
   function fillCategory() {
@@ -943,10 +959,23 @@ const WASHER_DATA = [{"name": "Roborock_세탁건조기_H1", "cur": 27, "kind": 
     let majors = [];
     if (brand === '전체') {
       const set = new Set();
-      Object.values(catalog).forEach(m => Object.keys(m).forEach(k => set.add(k)));
-      majors = Array.from(set);
+      const majorBrand = {}; // major -> 대표 브랜드(정렬용) — 카테고리명이 브랜드 간 겹치지 않으므로 최초 등장 브랜드로 고정
+      Object.keys(catalog).forEach(b => Object.keys(catalog[b]).forEach(k => {
+        set.add(k);
+        if (!(k in majorBrand)) majorBrand[k] = b;
+      }));
+      majors = Array.from(set).sort((a, b) => categoryRank(majorBrand[a], a) - categoryRank(majorBrand[b], b));
     } else {
       majors = Object.keys(catalog[brand] || {});
+      const catList = CATEGORY_ORDER[brand];
+      if (catList) {
+        majors = majors.slice().sort((a, b) => {
+          const ai = catList.indexOf(a), bi = catList.indexOf(b);
+          const ar = ai === -1 ? catList.length : ai;
+          const br = bi === -1 ? catList.length : bi;
+          return ar - br;
+        });
+      }
     }
     majors.forEach(m => opt(elCategory, m, m));
     elCategory.disabled = majors.length <= 1;
