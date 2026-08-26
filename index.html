@@ -273,6 +273,9 @@
   .msel-opt:hover { background: var(--surface-2); }
   .msel-opt input[type="checkbox"] { accent-color: var(--accent-3pl); width: 15px; height: 15px; flex: none; cursor: pointer; }
   .msel-opt.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+  /* 2026-08-26 추가: "제품" 필터는 품목 수가 많아 msel-panel 안에 검색창을 넣어 좁혀 찾을 수 있게 한다. */
+  .msel-search { width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; background: var(--surface-2); color: var(--text-primary); font-family: inherit; }
+  .msel-search:focus { outline: none; border-color: var(--accent-3pl); }
 
   .date-row {
     display: flex;
@@ -410,21 +413,16 @@
   .trend-svg .end-label { font-size: 10.5px; font-weight:700; fill: var(--text-primary); font-family: "Noto Sans KR", sans-serif; }
   .trend-svg .axis-label { font-size: 9.5px; fill: var(--text-muted); font-family: "Noto Sans KR", sans-serif; }
 
-  /* 2026-08-26 추가(12차): "제품별 이번 달 입고 수량"을 막대 리스트에서 그래프(SVG 막대 차트) 형태로 전환.
-     선택 구간 재고 추이(trend-svg)와 같은 카드형 wrap/그리드라인/축 스타일을 재사용해 시각적으로 통일하되,
-     x축은 날짜가 아니라 품목 순위(수량 내림차순)라 축 라벨은 순번만 짧게 표기하고, 정확한 품목명·수량은
-     막대를 클릭해야 보이는 툴팁으로 대체한다(일자별 원본 데이터가 없어 추이 그래프처럼 날짜 라인으로는
-     만들 수 없음 — 대신 클릭형 인터랙션으로 "그래프 형태" 요구를 충족). */
+  /* 2026-08-26 추가(13차): "제품별 이번 달 입고 수량"을 가로 막대그래프(SVG)로 표현한다. 일자별 원본
+     입고 데이터가 없어(월 누계 한 건뿐) 선택 구간 재고 추이처럼 날짜 x축으로는 그릴 수 없으므로,
+     대신 각 막대 위에 품목명을, 막대 오른쪽 끝에 정확한 수량을 항상 표기해 클릭 없이도 바로 값을
+     확인할 수 있는 가로 막대그래프 형태로 그린다(막대 색상 = 창고 구분, 길이 = 수량 비례). */
   .chart-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; background: var(--surface-2); }
-  .chart-hint { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
-  svg.bar-chart-svg { width:100%; height:200px; display:block; overflow: visible; }
+  svg.bar-chart-svg { width:100%; display:block; overflow: visible; }
   .bar-chart-svg .grid-line { stroke: var(--border); stroke-width: 1; }
-  .bar-chart-svg .bc-bar { cursor: pointer; transition: opacity 0.15s; }
-  .bar-chart-svg .bc-bar:hover, .bar-chart-svg .bc-bar.active { opacity: 0.75; }
-  .bar-chart-svg .bc-axis-label { font-size: 9px; fill: var(--text-muted); font-family: "Noto Sans KR", sans-serif; }
-  .bar-chart-svg .bc-tooltip-bg { fill: var(--surface); stroke: var(--border); stroke-width: 1; }
-  .bar-chart-svg .bc-tooltip-nm { font-size: 9.5px; fill: var(--text-primary); font-family: "Noto Sans KR", sans-serif; }
-  .bar-chart-svg .bc-tooltip-val { font-size: 11px; font-weight: 800; fill: var(--text-primary); font-family: "Gothic A1", sans-serif; }
+  .bar-chart-svg .bc-track-bg { fill: var(--surface-3); }
+  .bar-chart-svg .bc-row-name { font-size: 10.5px; fill: var(--text-primary); font-family: "Noto Sans KR", sans-serif; }
+  .bar-chart-svg .bc-row-val { font-size: 11px; font-weight: 700; fill: var(--text-secondary); font-variant-numeric: tabular-nums; font-family: "Gothic A1", sans-serif; }
   .bar-chart-svg .bc-empty-note { font-size: 12px; fill: var(--text-muted); font-family: "Noto Sans KR", sans-serif; }
 
   .ubus-pinned-note {
@@ -789,11 +787,11 @@
   <section aria-labelledby="explorer-head">
     <div class="section-head">
       <h2 id="explorer-head">제품별 · 일자별 잔여재고 조회</h2>
-      <p class="section-sub">창고 → 브랜드 → 카테고리 → 시리즈 순으로 좁혀서 날짜별 재고를 확인하세요</p>
+      <p class="section-sub">창고 → 브랜드 → 카테고리 → 시리즈 → 제품 순으로 좁혀서 날짜별 재고를 확인하세요</p>
     </div>
 
     <div class="explorer">
-      <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈는 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다.</p>
+      <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈·구분 조건에 맞는 품목만 표시되며, 검색창에 품목명 일부를 입력해 좁힐 수 있습니다.</p>
       <div class="filter-bar">
         <div class="field">
           <label for="f-warehouse">창고 <span class="multi-hint">(중복 선택 가능)</span></label>
@@ -836,6 +834,14 @@
           <select id="f-series" class="msel-native" multiple size="5"></select>
         </div>
         <div class="field">
+          <label for="f-product">제품 <span class="multi-hint">(중복 선택 가능)</span></label>
+          <div class="msel" data-msel="product">
+            <button type="button" class="msel-btn"><span class="msel-btn-label">전체</span><span class="msel-caret">⌄</span></button>
+            <div class="msel-panel"></div>
+          </div>
+          <select id="f-product" class="msel-native" multiple size="5"></select>
+        </div>
+        <div class="field">
           <label for="f-kind">구분</label>
           <div class="kind-toggle" id="f-kind" role="group" aria-label="완제품/ACC 구분">
             <button type="button" data-kind="완제품" class="active">완제품만</button>
@@ -868,13 +874,12 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기·Stand 청소기 모두 구분을 "ACC 포함"으로 두면 세정제·악세서리키트·더스트백만 추가 포함(그 외 ACC 부품은 제외), 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈 필터는 이 알림에는 적용되지 않습니다)</p>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기·Stand 청소기 모두 구분을 "ACC 포함"으로 두면 세정제·악세서리키트·더스트백만 추가 포함(그 외 ACC 부품은 제외), 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈·제품 필터는 이 알림에는 적용되지 않습니다)</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
           <div class="chart-wrap" id="inbound-chart-wrap">
-            <div class="chart-hint">막대를 클릭하면 정확한 수량이 표시됩니다</div>
-            <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200" preserveAspectRatio="none"></svg>
+            <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
           </div>
           <div class="legend-mini" id="inbound-legend"></div>
           <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관, 일자별 데이터는 원본 파일에 없어 제공되지 않습니다). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다.</p>
@@ -988,12 +993,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   const elBrand = document.getElementById('f-brand');
   const elCategory = document.getElementById('f-category');
   const elSeries = document.getElementById('f-series');
+  const elProduct = document.getElementById('f-product');
   const elDate = document.getElementById('f-date');
   const elDateBadge = document.getElementById('date-badge');
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
-  let currentInboundRows = [];
-  let inboundActiveIdx = -1;
 
   function opt(sel, value, label) {
     const o = document.createElement('option');
@@ -1029,7 +1033,21 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   // 클릭시 열리는 커스텀 다중 선택 드롭다운(msel, 2026-08-26 추가): 위 select들은 화면에서 숨기고
   // (.msel-native) 값 저장용 "모델"로만 계속 쓰며, 실제 화면에는 버튼+체크박스 패널을 그린다. select의
   // <option> 목록/선택 상태가 바뀔 때마다 syncMsel(key)를 호출해 패널과 버튼 라벨을 다시 그려 동기화한다.
-  const MSEL_KEYS = { warehouse: elWarehouse, brand: elBrand, category: elCategory, series: elSeries };
+  const MSEL_KEYS = { warehouse: elWarehouse, brand: elBrand, category: elCategory, series: elSeries, product: elProduct };
+  // 2026-08-26 추가: "제품" msel은 옵션이 많아(수백 개) 패널에 검색창을 붙인다. 검색 입력은 syncMsel이
+  // 패널을 다시 그릴 때마다 초기화되면 안 되므로, 옵션 목록만 담는 .msel-opts 컨테이너를 별도로 두고
+  // 검색창 자체는 최초 1회만 생성해 유지한다.
+  const MSEL_SEARCHABLE = { product: true };
+  function filterMselOptions(key, term) {
+    const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
+    if (!wrap) return;
+    const optsHost = wrap.querySelector('.msel-opts') || wrap.querySelector('.msel-panel');
+    const t = term.trim().toLowerCase();
+    optsHost.querySelectorAll('.msel-opt').forEach(row => {
+      const txt = row.querySelector('span') ? row.querySelector('span').textContent.toLowerCase() : '';
+      row.style.display = (!t || txt.includes(t)) ? '' : 'none';
+    });
+  }
   function syncMsel(key) {
     const sel = MSEL_KEYS[key];
     const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
@@ -1037,8 +1055,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const btn = wrap.querySelector('.msel-btn');
     const labelEl = btn.querySelector('.msel-btn-label');
     const panel = wrap.querySelector('.msel-panel');
+    const optsHost = panel.querySelector('.msel-opts') || panel;
     const opts = Array.from(sel.options);
-    panel.innerHTML = opts.map(o => `<label class="msel-opt${o.disabled ? ' disabled' : ''}"><input type="checkbox" value="${o.value}"${o.selected ? ' checked' : ''}${o.disabled ? ' disabled' : ''}><span>${o.textContent}</span></label>`).join('');
+    optsHost.innerHTML = opts.map(o => `<label class="msel-opt${o.disabled ? ' disabled' : ''}"><input type="checkbox" value="${o.value}"${o.selected ? ' checked' : ''}${o.disabled ? ' disabled' : ''}><span>${o.textContent}</span></label>`).join('');
+    const searchEl = panel.querySelector('.msel-search');
+    if (searchEl && searchEl.value.trim()) filterMselOptions(key, searchEl.value);
     const vals = getSelectedValues(sel);
     labelEl.textContent = vals.includes('전체') ? '전체' : (vals.length === 1 ? vals[0] : `${vals.length}개 선택`);
     btn.disabled = sel.disabled;
@@ -1061,6 +1082,20 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
     const btn = wrap.querySelector('.msel-btn');
     const panel = wrap.querySelector('.msel-panel');
+    if (MSEL_SEARCHABLE[key]) {
+      // 검색창은 최초 1회만 생성해 patch에서 살아남게 하고(옵션 목록만 담는 .msel-opts를 별도로 둠),
+      // syncMsel은 .msel-opts의 내용만 다시 그린다 — 그래야 옵션이 바뀌어도 입력 중이던 검색어가 안 지워진다.
+      const search = document.createElement('input');
+      search.type = 'text';
+      search.className = 'msel-search';
+      search.placeholder = '품목명 검색';
+      search.addEventListener('click', e => e.stopPropagation());
+      search.addEventListener('input', () => filterMselOptions(key, search.value));
+      panel.appendChild(search);
+      const optsHost = document.createElement('div');
+      optsHost.className = 'msel-opts';
+      panel.appendChild(optsHost);
+    }
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (sel.disabled) return;
@@ -1195,6 +1230,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     elSeries.disabled = list.length === 0;
     selectAll(elSeries);
     syncMsel('series');
+    fillProduct();
+  }
+
+  // 2026-08-26 추가: "제품" 필터 — 브랜드·카테고리·시리즈·구분(완제품/ACC)까지 좁힌 뒤 남는 개별 품목명
+  // 목록. matchesTm/matchesPinned를 그대로 재사용하되 제품 자신은 아직 정해지지 않았으므로 products
+  // 인자에 ['전체']를 넘겨 "제품 필터 적용 전" 상태로 후보를 모은다. 수량이 많은 품목이 위로 오도록
+  // 최신 일자 재고 수량 내림차순으로 정렬한다(브랜드/시리즈처럼 순번 규칙이 없어 자연스러운 기준으로 채택).
+  function fillProduct() {
+    const brands = getSelectedValues(elBrand);
+    const categories = getSelectedValues(elCategory);
+    const seriesArr = getSelectedValues(elSeries);
+    const nameQty = {};
+    items.forEach((it, i) => {
+      if (!matchesTm(it, brands, categories, seriesArr, kindMode, ['전체'])) return;
+      const latest = days[String(maxDay)][i];
+      nameQty[it.name] = (nameQty[it.name] || 0) + latest[0] + latest[1];
+    });
+    PINNED.forEach(u => {
+      if (!matchesPinned(u, brands, categories, seriesArr, kindMode, ['전체'])) return;
+      nameQty[u.name] = (nameQty[u.name] || 0) + (u.cur || 0);
+    });
+    elProduct.innerHTML = '';
+    opt(elProduct, '전체', '전체');
+    const list = Object.keys(nameQty).sort((a, b) => nameQty[b] - nameQty[a]);
+    list.forEach(n => opt(elProduct, n, n));
+    elProduct.disabled = list.length === 0;
+    selectAll(elProduct);
+    syncMsel('product');
   }
 
   // 창고를 특정 값 하나로만 고정하면(3PL/UBUS→로보락, 위니온→샤오미+TV, 세탁기→로보락+세탁건조기)
@@ -1230,18 +1293,22 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
   }
 
-  function matchesTm(it, brands, categories, seriesArr, kind) {
+  // 2026-08-26 추가: products 인자(제품 필터)는 기존 호출부를 모두 건드리지 않도록 기본값을 ['전체']로
+  // 둔다 — 인자를 넘기지 않으면 이전과 동일하게 동작(제품 필터 미적용)하고, 넘기면 품목명까지 좁혀진다.
+  function matchesTm(it, brands, categories, seriesArr, kind, products = ['전체']) {
     if (kind === '완제품' && it.kind !== '완제품') return false;
     if (!inSel(it.brand, brands)) return false;
     if (!inSel(it.major, categories)) return false;
     if (!inSel(it.series, seriesArr)) return false;
+    if (!inSel(it.name, products)) return false;
     return true;
   }
-  function matchesPinned(u, brands, categories, seriesArr, kind) {
+  function matchesPinned(u, brands, categories, seriesArr, kind, products = ['전체']) {
     if (kind === '완제품' && u.kind !== '완제품') return false;
     if (!inSel(u.brand, brands)) return false;
     if (!inSel(u.major, categories)) return false;
     if (!inSel(u.series, seriesArr)) return false;
+    if (!inSel(u.name, products)) return false;
     return true;
   }
   // B급/특가(_S) 재고 판별 — 품목명이 "_B급", "_B" 또는 "_S"로 끝나는 품목(2026-08-26 추가·갱신).
@@ -1341,6 +1408,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     // 선택되지 않았으면 ['전체']를 반환). matchesTm/matchesPinned의 inSel()이 '전체' 포함 여부와 배열 포함
     // 여부를 함께 확인한다.
     const brand = getSelectedValues(elBrand), category = getSelectedValues(elCategory), series = getSelectedValues(elSeries);
+    const product = getSelectedValues(elProduct);
     // 2026-08-26: 창고도 다중 선택 가능해졌다. warehouses는 선택된 값의 배열("전체" 단독이면 ['전체']).
     // isFullAll="전체"가 선택된 경우, activeSources는 그때 포함되는 실제 소스 목록(전체면 6개 전부,
     // 아니면 선택된 창고들 그대로). singleWarehouse는 "전체"가 아니면서 정확히 1개만 선택된 경우에만
@@ -1354,13 +1422,13 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     elDateBadge.textContent = '2026-08-' + String(elDate.value).padStart(2,'0');
 
     const idxs = [];
-    items.forEach((it,i) => { if (matchesTm(it, brand, category, series, kindMode)) idxs.push(i); });
+    items.forEach((it,i) => { if (matchesTm(it, brand, category, series, kindMode, product)) idxs.push(i); });
 
     const dayArr = days[date];
     let tmSum = 0, plSum = 0, impSum = 0;
     idxs.forEach(i => { tmSum += dayArr[i][0]; plSum += dayArr[i][1]; impSum += (items[i].imp||0); });
 
-    const pinnedMatched = PINNED.filter(u => matchesPinned(u, brand, category, series, kindMode));
+    const pinnedMatched = PINNED.filter(u => matchesPinned(u, brand, category, series, kindMode, product));
     const ubusMatched = pinnedMatched.filter(u => u.source === 'UBUS');
     const weioneMatched = pinnedMatched.filter(u => u.source === '위니온');
     const washerMatched = pinnedMatched.filter(u => u.source === '세탁기');
@@ -1532,8 +1600,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     // kindMode 기준이라 이 용도로는 재사용하지 않음).
     function buildItemBlock(kindFilter, limit) {
       const idxsK = [];
-      items.forEach((it, i) => { if (matchesTm(it, brand, category, series, '전체') && it.kind === kindFilter) idxsK.push(i); });
-      const pinnedK = PINNED.filter(u => matchesPinned(u, brand, category, series, '전체') && u.kind === kindFilter);
+      items.forEach((it, i) => { if (matchesTm(it, brand, category, series, '전체', product) && it.kind === kindFilter) idxsK.push(i); });
+      const pinnedK = PINNED.filter(u => matchesPinned(u, brand, category, series, '전체', product) && u.kind === kindFilter);
       let headSuffix, legendHtml, bodyHtml;
       if (singleWarehouse && PARTNER_SIDE.includes(singleWarehouse)) {
         const scoped = pinnedK.filter(u => u.source === singleWarehouse);
@@ -1790,119 +1858,63 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   }
 
   // 2026-08-26 추가(12차): "제품별 이번 달 입고 수량"을 SVG 막대그래프로 그린다. 일자별 원본 데이터가 없어
-  // x축은 날짜가 아니라 수량 내림차순 순위이며, 정확한 품목명·수량은 막대 클릭 시 툴팁으로 노출한다.
+  // 2026-08-26 갱신(13차): 가로 막대그래프로 전환 — 각 행에 품목명(위)과 정확한 수량(오른쪽 끝)을 항상
+  // 표기하고, 막대 길이는 수량에 비례한다. 일자별 입고 데이터가 원본에 없어 선택 구간 재고 추이처럼
+  // 날짜(8/1~8/24) x축으로는 그릴 수 없다 — 이 패널은 "이번 달 누계 입고"를 품목별로 비교하는 그래프.
   function renderInboundChart(rows, emptyMsg) {
     const svg = document.getElementById('inbound-chart-svg');
-    const hint = document.querySelector('#inbound-chart-wrap .chart-hint');
-    currentInboundRows = rows;
-    inboundActiveIdx = -1;
     if (!rows.length) {
-      if (hint) hint.style.display = 'none';
-      const W = 400, H = 200;
+      const W = Math.max(200, svg.clientWidth || 400), H = 80;
+      svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      svg.style.height = H + 'px';
       svg.innerHTML = `<text class="bc-empty-note" x="${W/2}" y="${H/2}" text-anchor="middle">${emptyMsg || '데이터가 없습니다.'}</text>`;
       return;
     }
-    if (hint) hint.style.display = '';
-    const W = 400, H = 200, PAD = 8, LABEL_H = 14;
-    const BOTTOM = H - LABEL_H, TOP = PAD;
-    const chartH = BOTTOM - TOP;
+    const W = Math.max(280, svg.clientWidth || 400);
+    const ROW_H = 34, PAD_TOP = 6, PAD_BOTTOM = 6, PAD_X = 4;
+    const H = rows.length * ROW_H + PAD_TOP + PAD_BOTTOM;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.style.height = H + 'px';
+
+    const trackW = W - PAD_X*2;
     const max = Math.max(...rows.map(r => r.qty)) || 1;
-    const slot = (W - PAD*2) / rows.length;
-    const barW = Math.max(2, slot * 0.62);
+    // 품목명은 SVG 텍스트라 자동 줄바꿈이 안 되므로, 그래프 폭에 비례한 대략적인 글자 수로 말줄임 처리하고
+    // 전체 품목명·정확한 수량은 <title>(마우스 오버 시 브라우저 네이티브 툴팁)로 함께 제공한다.
+    const maxChars = Math.max(14, Math.floor(trackW / 8.6));
 
-    const gridLines = [0.25, 0.5, 0.75].map(f => {
-      const yy = TOP + f*chartH;
-      return `<line class="grid-line" x1="0" y1="${yy}" x2="${W}" y2="${yy}" />`;
-    }).join('');
-
-    const bars = rows.map((r, i) => {
-      const barX = PAD + i*slot + (slot - barW)/2;
+    const rowsHtml = rows.map((r, i) => {
+      const rowTop = PAD_TOP + i * ROW_H;
+      const nameY = rowTop + 11;
+      const trackY = rowTop + 17;
+      const trackH = 10;
+      const nameText = r.name.length > maxChars ? r.name.slice(0, maxChars - 1) + '…' : r.name;
+      const valText = fmt(r.qty) + '개';
       let cum = 0;
       const segRects = (r.segs || []).filter(s => s.val > 0).map(s => {
-        const segH = (s.val/max) * chartH;
-        const rectY = BOTTOM - cum - segH;
-        cum += segH;
+        const segW = (s.val/max) * trackW;
+        const rectX = PAD_X + cum;
+        cum += segW;
         const colorVar = SEG_COLOR_VAR[s.cls] || '--accent-tm';
-        return `<rect x="${barX.toFixed(1)}" y="${rectY.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0,segH).toFixed(1)}" fill="var(${colorVar})" />`;
+        return `<rect x="${rectX.toFixed(1)}" y="${trackY}" width="${Math.max(0,segW).toFixed(1)}" height="${trackH}" rx="3" fill="var(${colorVar})" />`;
       }).join('');
-      const rankLabel = (i+1) % Math.max(1, Math.ceil(rows.length/12)) === 0 || i === 0 ? `<text class="bc-axis-label" x="${(barX+barW/2).toFixed(1)}" y="${H-3}" text-anchor="middle">${i+1}</text>` : '';
-      // data-name/data-qty: 자동화 테스트(verify.js 등)에서 DOM만으로 값 검증이 가능하도록 노출.
-      // <title>: 클릭 없이도 마우스 오버 시 브라우저 네이티브 툴팁으로 품목명/수량 확인 가능(보조 UX).
-      return `<g class="bc-bar" data-idx="${i}" data-name="${escXml(r.name)}" data-qty="${r.qty}">
+      return `<g class="bc-row" data-name="${escXml(r.name)}" data-qty="${r.qty}">
         <title>${escXml(r.name)} = ${fmt(r.qty)}개</title>
-        <rect x="${barX.toFixed(1)}" y="${TOP}" width="${barW.toFixed(1)}" height="${chartH}" fill="transparent" />
+        <text class="bc-row-name" x="${PAD_X}" y="${nameY}">${escXml(nameText)}</text>
+        <text class="bc-row-val" x="${W - PAD_X}" y="${nameY}" text-anchor="end">${valText}</text>
+        <rect class="bc-track-bg" x="${PAD_X}" y="${trackY}" width="${trackW.toFixed(1)}" height="${trackH}" rx="3" />
         ${segRects}
-        ${rankLabel}
       </g>`;
     }).join('');
 
-    svg.innerHTML = `
-      ${gridLines}
-      ${bars}
-      <g id="bc-tooltip" style="display:none;">
-        <rect class="bc-tooltip-bg" x="0" y="0" width="10" height="10" rx="4" />
-        <text class="bc-tooltip-nm" x="0" y="0"></text>
-        <text class="bc-tooltip-val" x="0" y="0"></text>
-      </g>
-    `;
-  }
-
-  function handleInboundChartClick(e) {
-    const g = e.target.closest('.bc-bar');
-    const svg = document.getElementById('inbound-chart-svg');
-    if (!g || !svg.contains(g)) return;
-    const idx = Number(g.dataset.idx);
-    const row = currentInboundRows[idx];
-    if (!row) return;
-    svg.querySelectorAll('.bc-bar.active').forEach(el => el.classList.remove('active'));
-    if (inboundActiveIdx === idx) {
-      inboundActiveIdx = -1;
-      const tip = document.getElementById('bc-tooltip');
-      if (tip) tip.style.display = 'none';
-      return;
-    }
-    inboundActiveIdx = idx;
-    g.classList.add('active');
-
-    const W = 400, PAD = 8, LABEL_H = 14, H = 200;
-    const slot = (W - PAD*2) / currentInboundRows.length;
-    const barX = PAD + idx*slot + slot/2;
-    const barTopY = (200 - LABEL_H) - Math.max(0, (row.qty / (Math.max(...currentInboundRows.map(r=>r.qty)) || 1)) * ((200-LABEL_H) - PAD));
-
-    const nameText = row.name.length > 22 ? row.name.slice(0, 21) + '…' : row.name;
-    const valText = fmt(row.qty) + '개';
-    const boxW = Math.max(70, Math.max(nameText.length * 6.2, valText.length * 7.5) + 16);
-    const boxH = 34;
-    let boxX = barX - boxW/2;
-    boxX = Math.max(2, Math.min(W - boxW - 2, boxX));
-    let boxY = barTopY - boxH - 8;
-    if (boxY < 2) boxY = barTopY + 8;
-
-    const tip = document.getElementById('bc-tooltip');
-    if (!tip) return;
-    tip.style.display = '';
-    tip.querySelector('.bc-tooltip-bg').setAttribute('x', boxX.toFixed(1));
-    tip.querySelector('.bc-tooltip-bg').setAttribute('y', boxY.toFixed(1));
-    tip.querySelector('.bc-tooltip-bg').setAttribute('width', boxW.toFixed(1));
-    tip.querySelector('.bc-tooltip-bg').setAttribute('height', boxH.toFixed(1));
-    const nmEl = tip.querySelector('.bc-tooltip-nm');
-    nmEl.setAttribute('x', (boxX + boxW/2).toFixed(1));
-    nmEl.setAttribute('y', (boxY + 14).toFixed(1));
-    nmEl.setAttribute('text-anchor', 'middle');
-    nmEl.textContent = nameText;
-    const valEl = tip.querySelector('.bc-tooltip-val');
-    valEl.setAttribute('x', (boxX + boxW/2).toFixed(1));
-    valEl.setAttribute('y', (boxY + 27).toFixed(1));
-    valEl.setAttribute('text-anchor', 'middle');
-    valEl.textContent = valText;
+    svg.innerHTML = rowsHtml;
   }
 
   elWarehouse.addEventListener('change', () => { normalizeMultiSelect(elWarehouse); applyWarehouseLock(); syncMsel('warehouse'); render(); });
   elBrand.addEventListener('change', () => { normalizeMultiSelect(elBrand); fillCategory(); fillSeries(); syncMsel('brand'); render(); });
   elCategory.addEventListener('change', () => { normalizeMultiSelect(elCategory); fillSeries(); syncMsel('category'); render(); });
-  elSeries.addEventListener('change', () => { normalizeMultiSelect(elSeries); syncMsel('series'); render(); });
+  elSeries.addEventListener('change', () => { normalizeMultiSelect(elSeries); syncMsel('series'); fillProduct(); render(); });
+  elProduct.addEventListener('change', () => { normalizeMultiSelect(elProduct); syncMsel('product'); render(); });
   elDate.addEventListener('input', render);
-  document.getElementById('inbound-chart-svg').addEventListener('click', handleInboundChartClick);
   elKindGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-kind]');
     if (!btn) return;
