@@ -828,7 +828,7 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head">주요 재고 알림 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외, B급/특가 재고 제외) · 위 브랜드·카테고리·시리즈·구분·창고 필터 조건 반영</p>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고 및 리퍼제품 수량은 제외 · 위 브랜드·카테고리·시리즈·구분·창고 필터 조건 반영</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1167,6 +1167,89 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   function isGraded(name) {
     return /_B급$/.test(name) || /_B$/.test(name) || /_S$/.test(name);
   }
+  // 리퍼(리퍼비시/재생) 재고 판별 — 품목명에 "리퍼"가 포함된 품목(2026-08-26 추가). 정상 등급 신품 재고가
+  // 아니므로 B급과 마찬가지로 주요 재고 알림 패널에서 제외하고, 품목명 기반 교차소스 합산 매칭 대상에서도
+  // 제외한다(리퍼 재고를 신품 TM 재고와 같은 품목으로 합산하면 실제로는 다른 등급의 재고가 섞여 보이게 됨).
+  function isRefurb(name) {
+    return name.includes('리퍼');
+  }
+
+  // 2026-08-26 추가(5차): TM측(품목코드 기반)과 UBUS/세탁기측(품목명만 존재, 코드 없음)이 서로 다른 표기
+  // 체계로 같은 물리적 제품을 가리키는 경우(예: TM "Roborock_로봇청소기_S10 MaxV Ultra_본체+울트라도크
+  // 세트(직배수)_블랙" ↔ UBUS "로보락_로봇청소기 S10 MaxV Ultra (직배수형) [블랙]")를 찾아 하나의 품목으로
+  // 합산 표기하기 위한 매칭 유틸. 사용자 요청대로 "품목 코드가 있으면 최우선 코드 기준" — 그러나 현재
+  // ubus_snapshot.json/washer_items.json 등 파트너 소스 데이터에는 코드 필드 자체가 없으므로(품목명만 존재),
+  // 코드가 있는 쪽(TM)과 없는 쪽(파트너)을 코드로 직접 매칭할 방법이 없어 실질적으로는 품목명 기반 매칭을
+  // 사용한다(코드가 양쪽에 다 존재하는 데이터가 향후 생기면 그쪽을 최우선으로 쓰도록 확장 가능한 구조로 작성).
+  // 등급 재고(B급/_B/_S)는 매칭 대상에서 제외(isGraded)하고, ACC(액세서리)/kind!=='완제품'도 매칭하지 않는다
+  // (완제품이 아닌 품목까지 이름 패턴으로 엮으면 오매칭 위험이 커짐).
+  function robotMatchKey(name) {
+    if (isGraded(name) || isRefurb(name)) return null;
+    let variant = '';
+    if (/MaxV\s*Ultra/i.test(name)) variant = 'MaxVUltra';
+    else if (/MaxV\s*Slim/i.test(name)) variant = 'MaxVSlim';
+    else if (/Max\s*Ultra/i.test(name)) variant = 'MaxUltra'; // "MaxV" 없는 별도 라인업(S8 Max Ultra) — MaxV Ultra와 혼동 금지
+    else if (/Pro\+/.test(name)) variant = 'ProPlus';
+    else if (/Pro/.test(name)) variant = 'Pro';
+    const pump = name.includes('직배수') ? 'direct' : (name.includes('일반') ? 'normal' : '');
+    const color = name.includes('블랙') ? 'black' : (name.includes('화이트') ? 'white' : (name.includes('실버') ? 'silver' : ''));
+    return { variant, pump, color };
+  }
+  function robotFullKey(name, seriesField) {
+    const k = robotMatchKey(name);
+    if (!k) return null;
+    return seriesField + '|' + k.variant + '|' + k.pump + '|' + k.color;
+  }
+  function washerMatchKey(name) {
+    if (isGraded(name) || isRefurb(name)) return null;
+    let n = name.replace('Roborock_세탁건조기_', '').replace(/로보락/g, '');
+    n = n.toUpperCase().replace(/\s+/g, '').replace(/_/g, '');
+    n = n.replace('LITE(W)', 'LITEWHITE').replace('LITE(G)', 'LITEGRAY');
+    return n;
+  }
+  // tmCandidates: [{name, series, qty, ...}], partnerCandidates: [{name, series, qty, ...}] (로봇청소기만 해당,
+  // 세탁기는 washerMatchKey가 색상 구분이 없어 항상 정확매칭 1패스로 충분). 반환: 매칭된 쌍(merged)과
+  // 매칭 실패로 남은 목록(unmatchedTm/unmatchedPartner). 인덱스를 훼손하지 않도록 원본 배열은 그대로 두고
+  // used 플래그로만 추적.
+  function matchRobotOrWasher(tmCandidates, partnerCandidates, isWasher) {
+    const usedTm = new Array(tmCandidates.length).fill(false);
+    const usedPartner = new Array(partnerCandidates.length).fill(false);
+    const merged = [];
+    // 1차: 엄격 매칭(세탁기는 색상 개념이 없는 정규화 키라 이 패스만으로 충분)
+    tmCandidates.forEach((t, ti) => {
+      const tKey = isWasher ? washerMatchKey(t.name) : robotFullKey(t.name, t.series);
+      if (tKey == null) return;
+      for (let pi = 0; pi < partnerCandidates.length; pi++) {
+        if (usedPartner[pi]) continue;
+        const p = partnerCandidates[pi];
+        const pKey = isWasher ? washerMatchKey(p.name) : robotFullKey(p.name, p.series);
+        if (pKey != null && pKey === tKey) { merged.push({ t, p }); usedTm[ti] = true; usedPartner[pi] = true; break; }
+      }
+    });
+    // 2차(로봇청소기만): TM 쪽 품목명에 색상 구분이 아예 없는 SKU(예: "S9 MaxV Slim_본체+울트라도크 세트
+    // (직배수 버전)")는 UBUS 쪽엔 색상별로 나뉘어 있어도(예: "...Slim (직배수형) [블랙]") 같은 제품일 수
+    // 있으므로, 색상을 제외한 완화 키로 재시도. 단 TM 쪽 자체 표기에 색상이 없는 경우에만 완화(TM이 색상을
+    // 명시했는데 못 찾은 경우는 실제로 그 색상 재고가 없는 것이므로 완화하지 않음 — 오매칭 방지).
+    if (!isWasher) {
+      tmCandidates.forEach((t, ti) => {
+        if (usedTm[ti]) return;
+        const rk = robotMatchKey(t.name);
+        if (!rk || rk.color !== '') return;
+        const tKeyRelaxed = t.series + '|' + rk.variant + '|' + rk.pump;
+        for (let pi = 0; pi < partnerCandidates.length; pi++) {
+          if (usedPartner[pi]) continue;
+          const p = partnerCandidates[pi];
+          const prk = robotMatchKey(p.name);
+          if (!prk) continue;
+          const pKeyRelaxed = p.series + '|' + prk.variant + '|' + prk.pump;
+          if (pKeyRelaxed === tKeyRelaxed) { merged.push({ t, p }); usedTm[ti] = true; usedPartner[pi] = true; break; }
+        }
+      });
+    }
+    const unmatchedTm = tmCandidates.filter((_, i) => !usedTm[i]);
+    const unmatchedPartner = partnerCandidates.filter((_, i) => !usedPartner[i]);
+    return { merged, unmatchedTm, unmatchedPartner };
+  }
 
   const fmt = n => n.toLocaleString('ko-KR');
 
@@ -1254,29 +1337,47 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       // 선택된 창고들의 합계로 계산(예: 3PL만 선택 시 3PL 수량만, TM+3PL 선택 시 그 둘의 합). 수입창고는
       // 여전히 이 패널에서 항상 제외(기존 설계 유지). 어느 소스도 선택되지 않은 품목(예: 창고=위니온만 선택된
       // 상태에서의 TM측 품목)은 이 패널에서 아예 제외한다.
+      // 2026-08-26 추가 갱신(5차): TM측과 UBUS측이 품목명 표기만 다를 뿐 같은 물리적 제품인 경우
+      // (matchRobotOrWasher, 로봇청소기 전용) 두 소스 수량을 합산해 한 행으로 보여준다(중복 카운트 방지 +
+      // 사용자가 요청한 "한 제품에 필터로 선택한 창고별 총 합계 수량" 요건 충족). Stand 청소기는 UBUS 취급
+      // 대상이 아니므로 매칭 없이 TM측 수량만 그대로 사용. 리퍼(리퍼비시) 재고는 B급과 마찬가지로 이 패널
+      // 자체에서 완전히 제외(isRefurb) — 신품이 아니므로 "주요 재고"로 집계하지 않으며, 매칭 대상에서도
+      // 애초에 제외되므로(robotMatchKey 내부) 신품 TM 수량과 섞여 합산될 위험도 없다.
       const tmSideOn = activeSources.includes('TM 자체창고'), plSideOn = activeSources.includes('3PL');
       const ubusSideOn = activeSources.includes('UBUS');
       const srcTag = w => w === 'TM 자체창고' ? 'TM' : w;
+      const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
       const rows = [];
+      const tmRobotCandidates = [];
       if (tmSideOn || plSideOn) {
-        const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
         items.forEach((it, i) => {
           const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
           if (!isTarget) return;
           if (!matchesTm(it, brand, category, series, kindMode)) return;
-          if (isGraded(it.name)) return;
+          if (isGraded(it.name) || isRefurb(it.name)) return;
           const qty = (tmSideOn ? dayArr[i][0] : 0) + (plSideOn ? dayArr[i][1] : 0);
-          rows.push({ name: it.name, tag: tmSideTag, qty });
+          if (it.major === '로봇청소기') {
+            tmRobotCandidates.push({ name: it.name, series: it.series, qty });
+          } else {
+            rows.push({ name: it.name, tag: tmSideTag, qty }); // Stand 청소기 — UBUS 대응 없음
+          }
         });
       }
+      const ubusCandidates = [];
       if (ubusSideOn) {
         PINNED.filter(u => u.source === 'UBUS').forEach(u => {
           const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
           if (!isTarget) return;
           if (!matchesPinned(u, brand, category, series, kindMode)) return;
-          if (isGraded(u.name)) return;
-          rows.push({ name: u.name, tag: 'UBUS', qty: u.cur });
+          if (isGraded(u.name) || isRefurb(u.name)) return;
+          ubusCandidates.push({ name: u.name, series: u.series, qty: u.cur });
         });
+      }
+      if (tmRobotCandidates.length || ubusCandidates.length) {
+        const { merged, unmatchedTm, unmatchedPartner } = matchRobotOrWasher(tmRobotCandidates, ubusCandidates, false);
+        merged.forEach(({ t, p }) => rows.push({ name: t.name, tag: tmSideTag ? tmSideTag + '+UBUS' : 'UBUS', qty: t.qty + p.qty }));
+        unmatchedTm.forEach(t => rows.push({ name: t.name, tag: tmSideTag, qty: t.qty }));
+        unmatchedPartner.forEach(p => rows.push({ name: p.name, tag: 'UBUS', qty: p.qty }));
       }
       rows.sort((a, b) => a.qty - b.qty);
       const t200 = rows.filter(r => r.qty < 200);
@@ -1285,18 +1386,20 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const listHtml = rs => rs.length
         ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${r.name}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
         : `<div class="low-stock-empty">해당 구간에 속하는 품목이 없습니다.</div>`;
+      // 2026-08-26 갱신(6차): 타이어 표시 순서를 200개 미만 → 500개 미만 → 1000개 미만 순으로 변경(재고가
+      // 가장 적어 시급한 구간이 먼저 보이도록).
       document.getElementById('low-stock-tiers').innerHTML = `
-        <div class="low-stock-tier t1000">
-          <div class="low-stock-tier-head"><span>1000개 미만 (500~999개)</span><span class="lst-count">${t1000.length}개 품목</span></div>
-          <div class="low-stock-list">${listHtml(t1000)}</div>
+        <div class="low-stock-tier t200">
+          <div class="low-stock-tier-head"><span>200개 미만</span><span class="lst-count">${t200.length}개 품목</span></div>
+          <div class="low-stock-list">${listHtml(t200)}</div>
         </div>
         <div class="low-stock-tier t500">
           <div class="low-stock-tier-head"><span>500개 미만 (200~499개)</span><span class="lst-count">${t500.length}개 품목</span></div>
           <div class="low-stock-list">${listHtml(t500)}</div>
         </div>
-        <div class="low-stock-tier t200">
-          <div class="low-stock-tier-head"><span>200개 미만</span><span class="lst-count">${t200.length}개 품목</span></div>
-          <div class="low-stock-list">${listHtml(t200)}</div>
+        <div class="low-stock-tier t1000">
+          <div class="low-stock-tier-head"><span>1000개 미만 (500~999개)</span><span class="lst-count">${t1000.length}개 품목</span></div>
+          <div class="low-stock-list">${listHtml(t1000)}</div>
         </div>
       `;
     })();
@@ -1307,7 +1410,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const itemLegend = document.getElementById('item-legend');
     if (singleWarehouse && PARTNER_SIDE.includes(singleWarehouse)) {
       const scoped = pinnedMatched.filter(u => u.source === singleWarehouse);
-      const rows = sortByPriority(scoped.filter(u=>u.cur>0), r => r.cur);
+      // 2026-08-26 갱신(6차): 품목별 잔여재고는 업무 우선순위(sortByPriority)가 아니라 수량 내림차순으로 정렬.
+      const rows = scoped.filter(u=>u.cur>0).sort((a,b) => b.cur - a.cur);
       const seg = SEG_OF_WAREHOUSE[singleWarehouse];
       itemListHead.textContent = `품목별 잔여재고 (${singleWarehouse}) · ${scoped.length}개 품목`;
       itemLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse} <span class="pin-dot"></span></span>`;
@@ -1334,7 +1438,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         .filter(r => r.val > 0)
         .sort((a,b) => b.val - a.val)
         .slice(0, 20);
-      const rows = sortByPriority(rowsTop, r => r.val);
+      // 2026-08-26 갱신(6차): 품목별 잔여재고는 업무 우선순위가 아니라 수량 내림차순 정렬(rowsTop이 이미 정렬됨).
+      const rows = rowsTop;
       itemListHead.textContent = `품목별 잔여재고 (${singleWarehouse}) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
       itemLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse}</span>`;
       if (rows.length === 0) {
@@ -1352,13 +1457,18 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     } else {
       // 창고="전체" 이거나 2개 이상의 창고가 동시에 선택된 경우(2026-08-26 갱신): activeSources에 포함된
       // 창고들만 통합해서 보여준다("전체"면 6개 전부, 다중 선택이면 선택된 창고만 — 위 로직과 동일한 방식).
-      // TM_DATA 품목은 같은 물리적 품목의 TM/3PL/수입창고 필드를, 선택된 소스에 해당하는 것만 한 막대에
-      // 스택하고, UBUS/위니온/세탁기는 품목명 체계가 TM 쪽과 달라(예: TM "Roborock_로봇청소기_S10 MaxV
-      // Ultra..." vs UBUS "로보락_로봇청소기 S10 MaxV Ultra (직배수형) [화이트]") 이름으로 안전하게 합산할 수
-      // 없으므로, 선택된 소스에 속하는 것만 같은 통합 리스트 안에 별도 행(단색 바)으로 풀링해서 함께 순위를 매긴다.
+      // TM_DATA 품목은 같은 물리적 품목의 TM/3PL/수입창고 필드를 선택된 소스에 해당하는 것만 한 막대에 스택.
+      // 2026-08-26 추가 갱신(5차): 예전엔 UBUS/위니온/세탁기가 TM 쪽과 품목명 표기 체계가 달라(예: TM
+      // "Roborock_로봇청소기_S10 MaxV Ultra..." vs UBUS "로보락_로봇청소기 S10 MaxV Ultra (직배수형)
+      // [화이트]") 이름으로 안전하게 합산할 수 없다고 보고 항상 별도 행으로 풀링했으나, "같은 물리적 제품이면
+      // 창고 구분 없이 합산 수량으로 보여달라"는 요청에 따라 matchRobotOrWasher로 TM측/UBUS측(로봇청소기),
+      // TM측/세탁기측(세탁건조기)을 이름 기반으로 매칭해 같은 제품이면 한 행(세그먼트 스택 바에 소스별 막대
+      // 이어붙임)으로 합산한다. 위니온(TV류)은 TM에 대응 품목이 아예 없어 매칭 대상에서 자연히 제외됨(major
+      // 불일치). B급/리퍼 재고는 robotMatchKey/washerMatchKey 내부에서 매칭 후보 자체에서 제외되므로(신품과
+      // 다른 등급이 섞여 합산될 위험 없음) 매칭되지 않고 기존처럼 개별 행으로 그대로 남는다.
       const tmOn = activeSources.includes('TM 자체창고'), plOn = activeSources.includes('3PL'), impOn = activeSources.includes('수입창고');
       const anyTmSide = tmOn || plOn || impOn;
-      const tmRows = anyTmSide ? idxs.map(i => {
+      const tmRowsAll = anyTmSide ? idxs.map(i => {
         const tm = tmOn ? dayArr[i][0] : 0, pl = plOn ? dayArr[i][1] : 0, imp = impOn ? (items[i].imp || 0) : 0;
         return {
           name: items[i].name, qty: tm + pl + imp,
@@ -1366,14 +1476,26 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
           brand: items[i].brand, major: items[i].major, series: items[i].series,
         };
       }).filter(r => r.qty > 0) : [];
-      const partnerRows = pinnedMatched.filter(u => activeSources.includes(u.source)).map(u => ({
+      const partnerRowsAll = pinnedMatched.filter(u => activeSources.includes(u.source)).map(u => ({
         name: u.name, qty: u.cur,
         segs: [{ cls: SEG_OF_WAREHOUSE[u.source], val: u.cur }],
         brand: u.brand, major: u.major, series: u.series,
       })).filter(r => r.qty > 0);
+      const tmRobotAll = tmRowsAll.filter(r => r.major === '로봇청소기');
+      const tmWasherAll = tmRowsAll.filter(r => r.major === '세탁건조기');
+      const tmOtherAll = tmRowsAll.filter(r => r.major !== '로봇청소기' && r.major !== '세탁건조기');
+      const partnerRobotAll = partnerRowsAll.filter(r => r.major === '로봇청소기');
+      const partnerWasherAll = partnerRowsAll.filter(r => r.major === '세탁건조기');
+      const partnerOtherAll = partnerRowsAll.filter(r => r.major !== '로봇청소기' && r.major !== '세탁건조기');
+      const robotMatch = matchRobotOrWasher(tmRobotAll, partnerRobotAll, false);
+      const washerMatch = matchRobotOrWasher(tmWasherAll, partnerWasherAll, true);
+      const mergeRow = ({ t, p }) => ({ name: t.name, qty: t.qty + p.qty, segs: t.segs.concat(p.segs), brand: t.brand, major: t.major, series: t.series });
+      const tmRows = tmOtherAll.concat(robotMatch.unmatchedTm, washerMatch.unmatchedTm, robotMatch.merged.map(mergeRow), washerMatch.merged.map(mergeRow));
+      const partnerRows = partnerOtherAll.concat(robotMatch.unmatchedPartner, washerMatch.unmatchedPartner);
       const pool = tmRows.concat(partnerRows);
       const rowsTop = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, 20);
-      const rows = sortByPriority(rowsTop, r => r.qty);
+      // 2026-08-26 갱신(6차): 품목별 잔여재고는 업무 우선순위가 아니라 수량 내림차순 정렬(rowsTop이 이미 정렬됨).
+      const rows = rowsTop;
       // 2026-08-26 갱신: 창고="전체"라도 실제로는 브랜드/카테고리/시리즈 필터에 해당 재고가 없는 창고가 섞여
       // 있을 수 있음(예: 브랜드=로보락 필터 시 위니온·세탁기는 항상 0). "전체 창고"라고 뭉뚱그려 표기하면
       // 실제로 보유하지 않은 창고까지 표기한 것처럼 보인다는 지적에 따라, activeSources 중 현재 필터 기준으로
