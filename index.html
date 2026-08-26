@@ -828,7 +828,7 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head">주요 재고 알림 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
-            <p class="lsp-sub">TM 자체창고 + 3PL + UBUS 합계(수입창고 제외, B급/특가 재고 제외) · 위 브랜드·카테고리·시리즈·구분 필터 조건 반영</p>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외, B급/특가 재고 제외) · 위 브랜드·카테고리·시리즈·구분·창고 필터 조건 반영</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1249,23 +1249,35 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       // 현재 선택된 필터(matchesTm/matchesPinned)를 그 대상 범위와 교집합으로 적용한다. 필터가 전부 "전체"이고
       // 구분이 "완제품만"이면 예전과 완전히 동일한 결과가 나오도록 설계(회귀 없음) — 필터를 좁히면(예: 시리즈=S10)
       // 그 좁혀진 조건에 맞는 품목만 남고, 대상 범위 밖의 카테고리로 필터링하면 0건이 될 수 있음(의도된 동작).
+      // 2026-08-26 추가 갱신(4차): (a) 품목명 옆 태그에서 시리즈/카테고리 명칭(S10/S9/S8/Stand 청소기)을 빼고
+      // 창고 표기만 남김, (b) 창고 필터가 "전체"가 아니면 선택된 창고에 해당하는 소스만 대상으로 하고 수량도
+      // 선택된 창고들의 합계로 계산(예: 3PL만 선택 시 3PL 수량만, TM+3PL 선택 시 그 둘의 합). 수입창고는
+      // 여전히 이 패널에서 항상 제외(기존 설계 유지). 어느 소스도 선택되지 않은 품목(예: 창고=위니온만 선택된
+      // 상태에서의 TM측 품목)은 이 패널에서 아예 제외한다.
+      const tmSideOn = activeSources.includes('TM 자체창고'), plSideOn = activeSources.includes('3PL');
+      const ubusSideOn = activeSources.includes('UBUS');
+      const srcTag = w => w === 'TM 자체창고' ? 'TM' : w;
       const rows = [];
-      items.forEach((it, i) => {
-        const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
-        if (!isTarget) return;
-        if (!matchesTm(it, brand, category, series, kindMode)) return;
-        if (isGraded(it.name)) return;
-        const qty = dayArr[i][0] + dayArr[i][1];
-        const tag = (it.major === '로봇청소기' ? it.series : 'Stand 청소기') + ' · TM+3PL';
-        rows.push({ name: it.name, tag, qty });
-      });
-      PINNED.filter(u => u.source === 'UBUS').forEach(u => {
-        const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
-        if (!isTarget) return;
-        if (!matchesPinned(u, brand, category, series, kindMode)) return;
-        if (isGraded(u.name)) return;
-        rows.push({ name: u.name, tag: u.series + ' · UBUS', qty: u.cur });
-      });
+      if (tmSideOn || plSideOn) {
+        const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
+        items.forEach((it, i) => {
+          const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
+          if (!isTarget) return;
+          if (!matchesTm(it, brand, category, series, kindMode)) return;
+          if (isGraded(it.name)) return;
+          const qty = (tmSideOn ? dayArr[i][0] : 0) + (plSideOn ? dayArr[i][1] : 0);
+          rows.push({ name: it.name, tag: tmSideTag, qty });
+        });
+      }
+      if (ubusSideOn) {
+        PINNED.filter(u => u.source === 'UBUS').forEach(u => {
+          const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
+          if (!isTarget) return;
+          if (!matchesPinned(u, brand, category, series, kindMode)) return;
+          if (isGraded(u.name)) return;
+          rows.push({ name: u.name, tag: 'UBUS', qty: u.cur });
+        });
+      }
       rows.sort((a, b) => a.qty - b.qty);
       const t200 = rows.filter(r => r.qty < 200);
       const t500 = rows.filter(r => r.qty >= 200 && r.qty < 500);
