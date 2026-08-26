@@ -854,7 +854,7 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기는 S10·S9·S8(구분을 "ACC 포함"으로 두면 ACC 품목도 포함), Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈 필터는 이 알림에는 적용되지 않습니다)</p>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기는 S10·S9·S8(구분을 "ACC 포함"으로 두면 세정제·악세서리키트·더스트백만 추가 포함, 그 외 ACC 부품은 제외), Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈 필터는 이 알림에는 적용되지 않습니다)</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1383,9 +1383,19 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       // 지시대로 matchesTm/matchesPinned 호출 시 series 인자를 실제 선택값 대신 ['전체']로 고정해서 시리즈
       // 드롭다운 선택이 이 패널을 좁히지 않게 한다(브랜드/카테고리/구분/창고 필터는 그대로 반영). (b) 로봇청소기의
       // S10/S9/S8 한정은 kind='완제품'(정식 모델) 품목에만 적용하고, kind='ACC'(구분="ACC 포함"일 때만
-      // matchesTm을 통과) 품목은 series 값이 'ACC'라 S10/S9/S8과 무관하게 항상 대상에 포함한다 — "ACC 포함
-      // 선택 시 해당 제품의 ACC도 함께 보여달라"는 요청 반영. Stand 청소기는 기존대로 F25만 제외.
-      const isRobotTarget = it => it.major === '로봇청소기' && ((it.series === 'S10' || it.series === 'S9' || it.series === 'S8') || it.kind === 'ACC');
+      // matchesTm을 통과) 품목 중 아래 isAllowedRobotAcc를 통과하는 품목만 series 값과 무관하게 대상에 포함한다.
+      // Stand 청소기는 기존대로 F25만 제외.
+      // 2026-08-26 갱신(10차): "ACC 포함" 시 로봇청소기 ACC 191종 전체가 노출되어 정작 중요한 소모품(세정제/
+      // 악세서리키트/더스트백)이 필터·정수통·브러시 등 부품 사이에 묻히는 문제가 있어, 이 알림에 한해 ACC 품목을
+      // 세정제·악세서리키트·더스트백 3종으로만 한정한다(사용자 지시: "로보락 세정제, 악세서리키트, dustbag(더스트백)만
+      // 포함해줘 그외 ACC는 제외"). "클리너통"(도크 세정액 탱크 부품)은 소모품이 아니라 부품이므로 "클리너" 매칭에서
+      // 제외하고, "더스트백 커버"도 백 자체가 아닌 커버 부품이므로 제외한다. 이 3종 제한은 저재고 알림 패널
+      // 표시에만 적용되며, 필터 상단의 esum 합계·카테고리 드롭다운 등 다른 화면에는 영향을 주지 않는다.
+      const isAllowedRobotAcc = name =>
+        (/세정제/.test(name) || (/클리너/.test(name) && !/클리너통/.test(name))) ||
+        name.includes('악세서리') ||
+        (/더스트백|dust ?bag/i.test(name) && !name.includes('커버'));
+      const isRobotTarget = it => it.major === '로봇청소기' && ((it.series === 'S10' || it.series === 'S9' || it.series === 'S8') || (it.kind === 'ACC' && isAllowedRobotAcc(it.name)));
       const isStandTarget = it => it.major === 'Stand 청소기' && it.series !== 'F25';
       const rows = [];
       const tmRobotCandidates = [];
