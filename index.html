@@ -1076,6 +1076,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const set = new Set();
       const majorBrand = {};
       brandList.forEach(b => Object.keys(catalog[b] || {}).forEach(k => {
+        // 2026-08-26: 완제품만 필터 상태에서는 완제품 재고가 전혀 없는(ACC 전용) 카테고리는
+        // 선택해도 항상 0개가 나오므로 목록에서 제외한다. ACC 포함(kindMode==='전체') 상태에서는 그대로 노출.
+        if (kindMode === '완제품' && (!catalog[b][k] || catalog[b][k].size === 0)) return;
         set.add(k);
         if (!(k in majorBrand)) majorBrand[k] = b;
       }));
@@ -1083,6 +1086,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     } else {
       const brand = brands[0];
       majors = Object.keys(catalog[brand] || {});
+      if (kindMode === '완제품') {
+        majors = majors.filter(m => catalog[brand][m] && catalog[brand][m].size > 0);
+      }
       const catList = CATEGORY_ORDER[brand];
       if (catList) {
         majors = majors.slice().sort((a, b) => {
@@ -1377,7 +1383,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const tmRobotCandidates = [];
       if (tmSideOn || plSideOn) {
         items.forEach((it, i) => {
-          const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
+          // 2026-08-26 갱신(8차): Stand 청소기 중 F25 시리즈는 대상에서 제외(사용자 지시).
+          const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || (it.major === 'Stand 청소기' && it.series !== 'F25');
           if (!isTarget) return;
           if (!matchesTm(it, brand, category, series, kindMode)) return;
           if (isGraded(it.name) || isRefurb(it.name)) return;
@@ -1659,15 +1666,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
 
     // trend — 창고=전체일 때는 전체 창고(TM+3PL 일별 변동분 + 수입창고/UBUS/위니온/세탁기 스냅샷 고정 합계) 기준으로
-    // 보여준다(2026-08-26 갱신). TM 자체창고/3PL을 단독 선택하면 해당 소스만의 일자별 추이로 좁혀지고(기존과 동일),
-    // 그 외 파트너 창고(UBUS/위니온/세탁기/수입창고)를 선택한 경우는 여전히 TM+3PL 추이로 보여준다(그 창고들은
-    // 날짜별 데이터가 없어 자체 추이를 낼 수 없으므로 기존 동작을 그대로 유지 — "필터 선택시엔 기존처럼" 원칙).
-    // trend(2026-08-26 갱신): TM 자체창고/3PL을 단독 선택하면 해당 소스만의 일자별 추이(기존과 동일). 그 외
-    // 파트너 창고(UBUS/위니온/세탁기/수입창고)를 단독 선택한 경우는 여전히 TM+3PL 추이로 보여준다(그 창고들은
-    // 날짜별 데이터가 없어 자체 추이를 낼 수 없으므로 기존 동작을 그대로 유지 — "필터 선택시엔 기존처럼" 원칙).
-    // 창고="전체"이거나 2개 이상의 창고가 동시에 선택된 경우는, activeSources에 포함된 TM/3PL의 일별 변동분과
-    // 나머지 포함된 소스(수입창고/UBUS/위니온/세탁기)의 고정 스냅샷 합을 더한 값을 보여준다("전체"였던 기존
-    // 로직을 선택된 부분집합으로 일반화한 것 — activeSources가 6개 전부이면 기존 '전체' 결과와 완전히 같다).
+    // 보여준다. TM 자체창고/3PL을 단독 선택하면 해당 소스만의 일자별 추이로 좁혀진다(기존과 동일).
+    // 2026-08-26 재수정: 그 외 파트너 창고(수입창고/UBUS/위니온/세탁기)를 단독 선택한 경우, 예전에는 "TM+3PL
+    // 합계"로 잘못 보여줬다 — 이 소스들은 TM_DATA에 대응하는 실제 재고가 아니라 날짜별 변동 데이터가 아예
+    // 없는 스냅샷 고정값이므로(세탁기만 선택해도 TM+3PL 값(대부분 0)이 뜨고 그래프가 깨져 보인다는 사용자
+    // 보고), 실제 선택한 창고의 현재 필터 기준 스냅샷 합계(sumByWarehouse, esum 타일과 동일한 값)를 구간
+    // 전체에 평평한 고정선으로 정직하게 보여주도록 변경. 창고="전체"이거나 2개 이상 선택된 경우는 기존과 동일.
     const trendTitle = document.getElementById('trend-head-title');
     let trendLabel, trendPoints, trendNow;
     if (singleWarehouse === 'TM 자체창고') {
@@ -1679,9 +1683,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       trendPoints = dayKeys.map(d => { const arr = days[String(d)]; let s = 0; idxs.forEach(i => s += arr[i][1]); return s; });
       trendNow = plSum;
     } else if (singleWarehouse) {
-      trendLabel = 'TM+3PL 합계';
-      trendPoints = dayKeys.map(d => { const arr = days[String(d)]; let s = 0; idxs.forEach(i => s += arr[i][0] + arr[i][1]); return s; });
-      trendNow = tmSum + plSum;
+      const snapVal = sumByWarehouse[singleWarehouse] || 0;
+      trendLabel = singleWarehouse + ' (스냅샷 고정값)';
+      trendPoints = dayKeys.map(() => snapVal);
+      trendNow = snapVal;
     } else {
       const tmOn = activeSources.includes('TM 자체창고'), plOn = activeSources.includes('3PL');
       const otherConst = (activeSources.includes('수입창고') ? impSum : 0) + (activeSources.includes('UBUS') ? ubusSum : 0)
