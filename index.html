@@ -21,6 +21,13 @@
     --accent-ubus-wash: #fdece3;
     --accent-tm-wash: #e5f6ee;
     --input-bg: #ffffff;
+    --note-blue: #1d5fbf;
+    --low-1000: #b9860a;
+    --low-1000-wash: #fbf1dc;
+    --low-500: #c15f13;
+    --low-500-wash: #fbe8d8;
+    --low-200: #c23b3b;
+    --low-200-wash: #fbe0e0;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -44,6 +51,13 @@
       --accent-ubus-wash: #33211a;
       --accent-tm-wash: #16281f;
       --input-bg: #201f1b;
+      --note-blue: #6ea8f7;
+      --low-1000: #d9a53c;
+      --low-1000-wash: #332708;
+      --low-500: #e08a45;
+      --low-500-wash: #3a2716;
+      --low-200: #e2635f;
+      --low-200-wash: #3a1f1f;
     }
   }
   :root[data-theme="dark"] {
@@ -66,6 +80,13 @@
     --accent-ubus-wash: #33211a;
     --accent-tm-wash: #16281f;
     --input-bg: #201f1b;
+    --note-blue: #6ea8f7;
+    --low-1000: #d9a53c;
+    --low-1000-wash: #332708;
+    --low-500: #e08a45;
+    --low-500-wash: #3a2716;
+    --low-200: #e2635f;
+    --low-200-wash: #3a1f1f;
   }
 
   * { box-sizing: border-box; }
@@ -290,6 +311,26 @@
   .legend-mini { display:flex; gap:16px; font-size:12px; color:var(--text-secondary); margin: 14px 0 0; flex-wrap:wrap; }
   .legend-mini span { display:inline-flex; align-items:center; gap:5px; }
   .legend-mini i { width:8px; height:8px; border-radius:2px; display:inline-block; }
+
+  .filter-scope-note { font-size: 12.5px; font-weight: 700; color: var(--note-blue); margin: 8px 0 0; }
+
+  .low-stock-panel { margin: 0 0 20px; }
+  .low-stock-panel .lsp-head { font-family: "Gothic A1", sans-serif; font-size: 14.5px; font-weight: 700; margin: 0 0 4px; color: var(--text-secondary); }
+  .low-stock-panel .lsp-sub { font-size: 11.5px; color: var(--text-muted); margin: 0 0 10px; }
+  .low-stock-tiers { display: flex; flex-direction: column; gap: 8px; }
+  .low-stock-tier { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .low-stock-tier-head { display:flex; align-items:center; justify-content:space-between; padding: 8px 12px; font-size: 12.5px; font-weight: 700; cursor: default; }
+  .low-stock-tier-head .lst-count { font-family: "Gothic A1", sans-serif; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .low-stock-tier.t1000 .low-stock-tier-head { background: var(--low-1000-wash); color: var(--low-1000); }
+  .low-stock-tier.t500 .low-stock-tier-head { background: var(--low-500-wash); color: var(--low-500); }
+  .low-stock-tier.t200 .low-stock-tier-head { background: var(--low-200-wash); color: var(--low-200); }
+  .low-stock-list { max-height: 140px; overflow-y: auto; padding: 4px 12px; }
+  .low-stock-row { display:flex; justify-content:space-between; gap:10px; font-size:12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+  .low-stock-row:last-child { border-bottom: none; }
+  .low-stock-row .lsr-nm { color: var(--text-primary); }
+  .low-stock-row .lsr-tag { color: var(--text-muted); font-size:11px; margin-left:4px; }
+  .low-stock-row .lsr-val { font-weight:700; font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space:nowrap; }
+  .low-stock-empty { font-size: 12px; color: var(--text-muted); padding: 10px 12px; }
 
   .trend-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; background: var(--surface-2); }
   .trend-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
@@ -691,6 +732,7 @@
       </div>
 
       <div class="explorer-summary" id="esum"></div>
+      <p class="filter-scope-note" id="esum-scope-note">브랜드/카테고리/시리즈 필터가 "전체"이면 각 창고의 전체 재고 수량이, 특정 조건으로 좁히면 그 조건에 해당하는 보유재고 창고 수량만 표시됩니다.</p>
       <p class="ubus-pinned-note">UBUS·위니온·세탁기·수입창고 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
 
       <div class="explorer-body">
@@ -703,6 +745,11 @@
           </div>
         </div>
         <div class="explorer-col">
+          <div class="low-stock-panel" id="low-stock-panel">
+            <h4 class="lsp-head">저재고 경보 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
+            <p class="lsp-sub">TM 자체창고 + 3PL 합계(조회일자 기준) · 필터 선택과 무관하게 항상 표시</p>
+            <div class="low-stock-tiers" id="low-stock-tiers"></div>
+          </div>
           <h3 id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/24, TM+3PL 합계)</h3>
           <div class="trend-wrap">
             <div class="trend-head">
@@ -1026,6 +1073,41 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 24일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
+
+    // 저재고 경보 패널 (2026-08-26 추가): 로봇청소기 S10/S9/S8 시리즈 + Stand 청소기 카테고리 전체를 대상으로,
+    // 현재 필터(브랜드/카테고리/시리즈/구분)와 무관하게 항상 동일한 대상 품목을 훑어서 TM 자체창고+3PL 합계(조회일자 기준)가
+    // 200개 미만/200~499개/500~999개인 품목을 배타적 3단계로 나눠 보여준다. 목적은 재고 부족 상황을 첫 화면에서 바로 포착하는 것.
+    (function renderLowStock() {
+      const rows = [];
+      items.forEach((it, i) => {
+        if (it.kind !== '완제품') return;
+        const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
+        if (!isTarget) return;
+        const qty = dayArr[i][0] + dayArr[i][1];
+        rows.push({ name: it.name, tag: it.major === '로봇청소기' ? it.series : 'Stand 청소기', qty });
+      });
+      rows.sort((a, b) => a.qty - b.qty);
+      const t200 = rows.filter(r => r.qty < 200);
+      const t500 = rows.filter(r => r.qty >= 200 && r.qty < 500);
+      const t1000 = rows.filter(r => r.qty >= 500 && r.qty < 1000);
+      const listHtml = rs => rs.length
+        ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${r.name}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
+        : `<div class="low-stock-empty">해당 구간에 속하는 품목이 없습니다.</div>`;
+      document.getElementById('low-stock-tiers').innerHTML = `
+        <div class="low-stock-tier t1000">
+          <div class="low-stock-tier-head"><span>1000개 미만 (500~999개)</span><span class="lst-count">${t1000.length}개 품목</span></div>
+          <div class="low-stock-list">${listHtml(t1000)}</div>
+        </div>
+        <div class="low-stock-tier t500">
+          <div class="low-stock-tier-head"><span>500개 미만 (200~499개)</span><span class="lst-count">${t500.length}개 품목</span></div>
+          <div class="low-stock-list">${listHtml(t500)}</div>
+        </div>
+        <div class="low-stock-tier t200">
+          <div class="low-stock-tier-head"><span>200개 미만</span><span class="lst-count">${t200.length}개 품목</span></div>
+          <div class="low-stock-list">${listHtml(t200)}</div>
+        </div>
+      `;
+    })();
 
     // item bar list — 단일 통합 리스트. 창고 선택에 따라 TM+3PL 전체(stacked), TM 계열 단일 창고, 또는 파트너 창고(UBUS/위니온/세탁기) 품목을 그대로 보여준다(더 이상 별도 섹션으로 분리하지 않음).
     const itemBars = document.getElementById('item-bars');
