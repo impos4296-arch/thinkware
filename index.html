@@ -303,6 +303,18 @@
     min-width: 92px;
     text-align: right;
   }
+  .kind-toggle-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .kind-toggle-top label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+  }
   .kind-toggle {
     display: inline-flex;
     border: 1px solid var(--border-strong);
@@ -792,15 +804,15 @@
     </div>
 
     <div class="explorer">
+      <div class="kind-toggle-top">
+        <label for="f-kind">구분</label>
+        <div class="kind-toggle" id="f-kind" role="group" aria-label="본품/ACC 구분">
+          <button type="button" data-kind="완제품" class="active">본품만</button>
+          <button type="button" data-kind="전체">ACC 포함</button>
+        </div>
+      </div>
       <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈·구분 조건에 맞는 품목만 표시되며, 검색창에 품목명 일부를 입력해 좁힐 수 있습니다.</p>
       <div class="filter-bar">
-        <div class="field">
-          <label for="f-kind">구분</label>
-          <div class="kind-toggle" id="f-kind" role="group" aria-label="본품/ACC 구분">
-            <button type="button" data-kind="완제품" class="active">본품만</button>
-            <button type="button" data-kind="전체">ACC 포함</button>
-          </div>
-        </div>
         <div class="field">
           <label for="f-warehouse">창고 <span class="multi-hint">(중복 선택 가능)</span></label>
           <div class="msel" data-msel="warehouse">
