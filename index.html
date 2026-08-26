@@ -828,7 +828,7 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head">주요 재고 알림 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
-            <p class="lsp-sub">TM 자체창고 + 3PL + UBUS 합계(수입창고 제외, B급/특가 재고 제외) · 필터 선택과 무관하게 항상 표시</p>
+            <p class="lsp-sub">TM 자체창고 + 3PL + UBUS 합계(수입창고 제외, B급/특가 재고 제외) · 위 브랜드·카테고리·시리즈·구분 필터 조건 반영</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1236,28 +1236,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     `;
 
     // 주요 재고 알림 패널(구 "저재고 경보"/"재고 부족 알림", 2026-08-26 추가·갱신): 로봇청소기 S10/S9/S8 시리즈 +
-    // Stand 청소기 카테고리 전체를 대상으로, 현재 필터(브랜드/카테고리/시리즈/구분)와 무관하게 항상 동일한 대상
+    // Stand 청소기 카테고리를 대상 범위로 하되, 그 범위를 현재 선택된 브랜드/카테고리/시리즈/구분 필터와
+    // 교집합으로 좁혀서(matchesTm/matchesPinned 재사용 — 필터가 전부 "전체"면 예전과 동일한 결과) 대상
     // 품목을 훑어서 TM 자체창고+3PL(조회일자 기준)+UBUS(최신 스냅샷) 합계를 수량 구간별로 나눠 보여준다. 이 구간
     // 기준은 아직 "부족" 여부를 판단할 근거가 있는 공식 기준이 아니라 참고용 구간이므로, 추후 부족 재고 기준이
     // 별도로 정해지면 그에 맞춰 갱신한다(2026-08-26 사용자 지시로 "재고 부족 알림" 명칭에서 "부족" 표현 제거).
     // 수입창고는 이 재고 수치에서 제외하고(사용자 지시), B급/특가(_B급/_B/_S) 재고도 정상 등급 재고가 아니므로
     // 제외한다. UBUS는 로봇청소기만 취급하므로 Stand 청소기는 TM+3PL만 해당된다.
     (function renderLowStock() {
+      // 2026-08-26 갱신: 예전엔 브랜드/카테고리/시리즈/구분 필터와 무관하게 항상 동일한 대상(로봇청소기
+      // S10/S9/S8 + Stand 청소기)을 보여줬으나, "필터에 따라 조회 품목/수량도 바뀌게 해달라"는 요청에 따라
+      // 현재 선택된 필터(matchesTm/matchesPinned)를 그 대상 범위와 교집합으로 적용한다. 필터가 전부 "전체"이고
+      // 구분이 "완제품만"이면 예전과 완전히 동일한 결과가 나오도록 설계(회귀 없음) — 필터를 좁히면(예: 시리즈=S10)
+      // 그 좁혀진 조건에 맞는 품목만 남고, 대상 범위 밖의 카테고리로 필터링하면 0건이 될 수 있음(의도된 동작).
       const rows = [];
       items.forEach((it, i) => {
-        if (it.kind !== '완제품') return;
-        if (isGraded(it.name)) return;
         const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
         if (!isTarget) return;
+        if (!matchesTm(it, brand, category, series, kindMode)) return;
+        if (isGraded(it.name)) return;
         const qty = dayArr[i][0] + dayArr[i][1];
         const tag = (it.major === '로봇청소기' ? it.series : 'Stand 청소기') + ' · TM+3PL';
         rows.push({ name: it.name, tag, qty });
       });
       PINNED.filter(u => u.source === 'UBUS').forEach(u => {
-        if (u.kind !== '완제품') return;
-        if (isGraded(u.name)) return;
         const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
         if (!isTarget) return;
+        if (!matchesPinned(u, brand, category, series, kindMode)) return;
+        if (isGraded(u.name)) return;
         rows.push({ name: u.name, tag: u.series + ' · UBUS', qty: u.cur });
       });
       rows.sort((a, b) => a.qty - b.qty);
@@ -1356,9 +1362,18 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const pool = tmRows.concat(partnerRows);
       const rowsTop = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, 20);
       const rows = sortByPriority(rowsTop, r => r.qty);
-      const scopeLabel = isFullAll ? '전체 창고' : activeSources.join('+');
+      // 2026-08-26 갱신: 창고="전체"라도 실제로는 브랜드/카테고리/시리즈 필터에 해당 재고가 없는 창고가 섞여
+      // 있을 수 있음(예: 브랜드=로보락 필터 시 위니온·세탁기는 항상 0). "전체 창고"라고 뭉뚱그려 표기하면
+      // 실제로 보유하지 않은 창고까지 표기한 것처럼 보인다는 지적에 따라, activeSources 중 현재 필터 기준으로
+      // 실제 재고(sumByWarehouse)가 있는 창고만 라벨/범례에 표기한다(다중 선택으로 명시적으로 고른 경우는
+      // 사용자가 그 창고들을 직접 골랐으므로 0이어도 그대로 전부 표기 — 이 정리는 "전체"일 때만 적용).
+      const presentSources = activeSources.filter(w => (sumByWarehouse[w] || 0) > 0);
+      const scopeLabel = isFullAll
+        ? (presentSources.length === ALL_SOURCES.length || presentSources.length === 0 ? '전체 창고' : presentSources.join('+'))
+        : activeSources.join('+');
       itemListHead.textContent = `품목별 잔여재고 (${scopeLabel}) · ${pool.length}개 품목 중 상위 ${rows.length}`;
-      itemLegend.innerHTML = activeSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
+      const legendSources = isFullAll && presentSources.length ? presentSources : activeSources;
+      itemLegend.innerHTML = legendSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
       if (rows.length === 0) {
         itemBars.innerHTML = '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>';
       } else {
@@ -1452,8 +1467,20 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const pool = tmRows.concat(partnerRows);
       const rows = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, 20);
       const inboundScopeSources = activeSources.filter(w => w === 'TM 자체창고' || w === '3PL' || w === 'UBUS' || w === '세탁기');
-      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${isFullAll ? '전체 창고' : activeSources.join('+')})`;
-      inboundLegend.innerHTML = inboundScopeSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
+      // 2026-08-26 갱신: 품목별 잔여재고 패널과 동일한 이유로, 창고="전체"일 때 실제로 이번 달 입고 실적이
+      // 있는 소스만 라벨/범례에 표기한다(다중 선택으로 명시적으로 고른 경우는 그대로 전부 표기).
+      const inTmTotal = tmRows.reduce((s, r) => s + r.segs[0].val, 0);
+      const inPlTotal = tmRows.reduce((s, r) => s + r.segs[1].val, 0);
+      const inUbusTotal = partnerRows.filter(r => r.segs[0].cls === 'seg-ub').reduce((s, r) => s + r.segs[0].val, 0);
+      const inWasherTotal = partnerRows.filter(r => r.segs[0].cls === 'seg-wa').reduce((s, r) => s + r.segs[0].val, 0);
+      const inboundTotalsBySource = { 'TM 자체창고': inTmTotal, '3PL': inPlTotal, 'UBUS': inUbusTotal, '세탁기': inWasherTotal };
+      const presentInboundSources = inboundScopeSources.filter(w => (inboundTotalsBySource[w] || 0) > 0);
+      const inboundScopeLabel = isFullAll
+        ? (presentInboundSources.length === inboundScopeSources.length || presentInboundSources.length === 0 ? '전체 창고' : presentInboundSources.join('+'))
+        : activeSources.join('+');
+      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${inboundScopeLabel})`;
+      const inboundLegendSources = isFullAll && presentInboundSources.length ? presentInboundSources : inboundScopeSources;
+      inboundLegend.innerHTML = inboundLegendSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
       if (rows.length === 0) {
         inboundBars.innerHTML = '<p class="empty-note">이번 달 입고 내역이 없습니다.</p>';
       } else {
