@@ -938,6 +938,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   };
   const SERIES_ORDER = {
     '로봇청소기': ['S10', 'S9', 'S8', 'S7'],
+    'Stand 청소기': ['H60', 'F25', 'Dyad', 'H5'],
     '헤어드라이어': ['SE Lite', 'Mini', 'SE+', 'Swift Special'],
   };
   function priorityRank(brand, major, series) {
@@ -1142,19 +1143,30 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     opt(elSeries, '전체', '전체');
     const brandList = brands.includes('전체') ? Object.keys(catalog) : brands;
     let seriesSet = new Set();
+    // 2026-08-26 갱신: 시리즈가 속한 브랜드/카테고리(major)를 함께 기록해둔다 — 카테고리가 "전체"라 여러
+    // 카테고리의 시리즈가 뒤섞이는 경우에도 priorityRank(브랜드→카테고리→시리즈)로 정렬할 수 있도록.
+    // 같은 시리즈명이 여러 브랜드/카테고리에 동시에 존재하는 경우는 없다고 가정하고 최초 등장한 것을 사용.
+    const seriesBrand = {}, seriesMajor = {};
     if (categories.includes('전체')) {
-      brandList.forEach(b => Object.values(catalog[b] || {}).forEach(s => s.forEach(x => seriesSet.add(x))));
+      brandList.forEach(b => Object.entries(catalog[b] || {}).forEach(([major, s]) => s.forEach(x => {
+        if (!x || x === '전체') return;
+        seriesSet.add(x);
+        if (!(x in seriesMajor)) { seriesMajor[x] = major; seriesBrand[x] = b; }
+      })));
     } else {
       brandList.forEach(b => categories.forEach(c => {
         const s = (catalog[b] || {})[c];
-        if (s) s.forEach(x => seriesSet.add(x));
+        if (s) s.forEach(x => {
+          if (!x || x === '전체') return;
+          seriesSet.add(x);
+          if (!(x in seriesMajor)) { seriesMajor[x] = c; seriesBrand[x] = b; }
+        });
       }));
     }
     let list = Array.from(seriesSet).filter(s => s && s !== '전체');
     // 카테고리가 단일 확정된 경우 SERIES_ORDER를 적용해 지정된 순서로 정렬 (2026-08-26 추가, 다중 선택 대응으로 갱신).
     // 선택된 카테고리가 정확히 1개이면 그 값을, 카테고리가 "전체"이고 선택된 브랜드가 정확히 1개이며 그
     // 브랜드의 major가 1개뿐이면(카테고리가 1개뿐이라 비활성화된 경우 포함) 그 major를 유효 major로 사용한다.
-    // 브랜드/카테고리가 여러 개 혼재된 경우는 순서가 서로 달라 의미가 없으므로 건드리지 않음.
     let effectiveMajor = null;
     if (!categories.includes('전체') && categories.length === 1) {
       effectiveMajor = categories[0];
@@ -1170,6 +1182,14 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         const br = bi === -1 ? serList.length : bi;
         return ar - br;
       });
+    } else {
+      // 2026-08-26 추가: 카테고리가 "전체"이거나 브랜드·카테고리가 여러 개 혼재된 경우(effectiveMajor 없음)에도
+      // priorityRank(브랜드→카테고리→시리즈)로 정렬한다 — 결과적으로 카테고리 드롭다운과 동일한 순서
+      // (로봇청소기 S10·S9·S8·S7 → Stand 청소기 H60·F25·Dyad·H5 → 세탁건조기 → 음식물처리기 …)로 시리즈가 나열된다.
+      // priorityRank가 정의되지 않은 카테고리(세탁건조기·음식물처리기 등)의 시리즈끼리는 동순위로 묶여
+      // 원래 발견 순서를 유지한다(Array.prototype.sort는 안정 정렬).
+      list = list.slice().sort((a, b) =>
+        priorityRank(seriesBrand[a], seriesMajor[a], a) - priorityRank(seriesBrand[b], seriesMajor[b], b));
     }
     list.forEach(s => opt(elSeries, s, s));
     elSeries.disabled = list.length === 0;
