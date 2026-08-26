@@ -274,7 +274,8 @@
   .msel-opt input[type="checkbox"] { accent-color: var(--accent-3pl); width: 15px; height: 15px; flex: none; cursor: pointer; }
   .msel-opt.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
   /* 2026-08-26 추가: "제품" 필터는 품목 수가 많아 msel-panel 안에 검색창을 넣어 좁혀 찾을 수 있게 한다. */
-  .msel-search { width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; background: var(--surface-2); color: var(--text-primary); font-family: inherit; }
+  /* position: sticky — 옵션이 많아 .msel-panel(overflow-y:auto)이 스크롤돼도 검색창은 패널 상단에 고정. */
+  .msel-search { position: sticky; top: 0; z-index: 2; width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; background: var(--surface-2); color: var(--text-primary); font-family: inherit; }
   .msel-search:focus { outline: none; border-color: var(--accent-3pl); }
 
   .date-row {
@@ -794,6 +795,13 @@
       <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈·구분 조건에 맞는 품목만 표시되며, 검색창에 품목명 일부를 입력해 좁힐 수 있습니다.</p>
       <div class="filter-bar">
         <div class="field">
+          <label for="f-kind">구분</label>
+          <div class="kind-toggle" id="f-kind" role="group" aria-label="본품/ACC 구분">
+            <button type="button" data-kind="완제품" class="active">본품만</button>
+            <button type="button" data-kind="전체">ACC 포함</button>
+          </div>
+        </div>
+        <div class="field">
           <label for="f-warehouse">창고 <span class="multi-hint">(중복 선택 가능)</span></label>
           <div class="msel" data-msel="warehouse">
             <button type="button" class="msel-btn"><span class="msel-btn-label">전체</span><span class="msel-caret">⌄</span></button>
@@ -841,13 +849,6 @@
           </div>
           <select id="f-product" class="msel-native" multiple size="5"></select>
         </div>
-        <div class="field">
-          <label for="f-kind">구분</label>
-          <div class="kind-toggle" id="f-kind" role="group" aria-label="완제품/ACC 구분">
-            <button type="button" data-kind="완제품" class="active">완제품만</button>
-            <button type="button" data-kind="전체">ACC 포함</button>
-          </div>
-        </div>
       </div>
 
       <div class="date-row">
@@ -862,7 +863,7 @@
 
       <div class="explorer-body">
         <div class="explorer-col">
-          <h3 id="item-list-head">[완제품] 품목별 잔여재고 (전체 창고)</h3>
+          <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
           <div class="item-bars" id="item-bars"></div>
           <div class="legend-mini" id="item-legend"></div>
           <div id="acc-item-block" style="display:none;">
@@ -874,7 +875,7 @@
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기·Stand 청소기 모두 구분을 "ACC 포함"으로 두면 세정제·악세서리키트·더스트백만 추가 포함(그 외 ACC 부품은 제외), 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈·제품 필터는 이 알림에는 적용되지 않습니다)</p>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 이 알림은 "구분"(본품만/ACC 포함) 설정과 무관하게 항상 본품(완제품) 기준으로만 집계됩니다 · 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·창고 필터 조건 반영(시리즈·제품·구분 필터는 이 알림에는 적용되지 않습니다)</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -897,7 +898,7 @@
   </section>
 
   <footer>
-    수량 단위: 개(EA), 완제품 + ACC 합산. 3PL·UBUS 완제품 구분은 창고별 출고 실적 기준으로 분류.<br>
+    수량 단위: 개(EA), 본품 + ACC 합산. 3PL·UBUS 본품 구분은 창고별 출고 실적 기준으로 분류.<br>
     작성: 팅크웨어모바일 영업관리팀
   </footer>
 
@@ -1323,6 +1324,30 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     return name.includes('리퍼');
   }
 
+  // 2026-08-26 추가(14차, 사용자 지시): "[ACC] 품목별 잔여재고" 리스트에서 시리즈 필터가 로봇청소기 ACC
+  // 부품을 걸러내지 못하는 문제 — 로봇청소기 ACC 199종 대부분은 데이터의 series 필드가 실제 시리즈명이
+  // 아니라 전부 'ACC'라는 값으로 뭉뚱그려져 있다(품목명에는 "로보락_S10 MaxV Ultra_먼지통..." 처럼 시리즈가
+  // 명확히 적혀 있음에도). 그래서 시리즈=S10만 선택해도 관련 ACC가 전부 사라졌다. 아래 두 함수는 품목명에서
+  // 시리즈 토큰(S10/S9/S8/Qrevo Curv/Saros Z70)을 직접 추출해 series 필드 대신 사용한다. "로보락 세정제"는
+  // 이름에 시리즈가 없지만 S10·S9 로봇 공용 소모품이라 사용자 지시대로 S10·S9 두 시리즈에 공통 노출한다.
+  const ACC_SERIES_CANDIDATES = ['S10', 'S9', 'S8', 'S7', 'Qrevo Curv', 'Saros Z70'];
+  function inferAccSeriesTokens(name) {
+    if (/세정제/.test(name)) return ['S10', 'S9'];
+    const hay = name.toLowerCase();
+    return ACC_SERIES_CANDIDATES.filter(s => hay.includes(s.toLowerCase()));
+  }
+  // it/u: TM 품목 또는 PINNED 항목. seriesArr: 현재 선택된 시리즈 필터 값 배열.
+  // Stand 청소기 ACC(F25/Dyad/H60/H5)는 이미 series 필드가 정확하므로 그대로 inSel을 쓰고, 로봇청소기
+  // ACC만 이름 기반 추론을 적용한다. 추론된 토큰이 하나도 없으면(공기청정기 필터 등 이 알림과 무관한 잡화
+  // ACC) 기존 방식대로 처리해 "전체" 선택 시에만 노출되게 둔다.
+  function accSeriesMatches(it, seriesArr) {
+    if (seriesArr.includes('전체')) return true;
+    if (it.major !== '로봇청소기') return inSel(it.series, seriesArr);
+    const tokens = inferAccSeriesTokens(it.name);
+    if (!tokens.length) return inSel(it.series, seriesArr);
+    return tokens.some(t => seriesArr.includes(t));
+  }
+
   // 2026-08-26 추가(5차): TM측(품목코드 기반)과 UBUS/세탁기측(품목명만 존재, 코드 없음)이 서로 다른 표기
   // 체계로 같은 물리적 제품을 가리키는 경우(예: TM "Roborock_로봇청소기_S10 MaxV Ultra_본체+울트라도크
   // 세트(직배수)_블랙" ↔ UBUS "로보락_로봇청소기 S10 MaxV Ultra (직배수형) [블랙]")를 찾아 하나의 품목으로
@@ -1498,35 +1523,23 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const ubusSideOn = activeSources.includes('UBUS');
       const srcTag = w => w === 'TM 자체창고' ? 'TM' : w;
       const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
-      // 2026-08-26 갱신(9차): (a) 이 알림의 대상 범위는 시리즈 필터와 무관하게 "카테고리"로만 판단한다 — 사용자
+      // 2026-08-26 갱신(9차): 이 알림의 대상 범위는 시리즈 필터와 무관하게 "카테고리"로만 판단한다 — 사용자
       // 지시대로 matchesTm/matchesPinned 호출 시 series 인자를 실제 선택값 대신 ['전체']로 고정해서 시리즈
-      // 드롭다운 선택이 이 패널을 좁히지 않게 한다(브랜드/카테고리/구분/창고 필터는 그대로 반영). (b) 로봇청소기의
-      // S10/S9/S8 한정은 kind='완제품'(정식 모델) 품목에만 적용하고, kind='ACC'(구분="ACC 포함"일 때만
-      // matchesTm을 통과) 품목 중 아래 isAllowedRobotAcc를 통과하는 품목만 series 값과 무관하게 대상에 포함한다.
-      // Stand 청소기는 기존대로 F25만 제외.
-      // 2026-08-26 갱신(10차): "ACC 포함" 시 로봇청소기 ACC 191종 전체가 노출되어 정작 중요한 소모품(세정제/
-      // 악세서리키트/더스트백)이 필터·정수통·브러시 등 부품 사이에 묻히는 문제가 있어, 이 알림에 한해 ACC 품목을
-      // 세정제·악세서리키트·더스트백 3종으로만 한정한다(사용자 지시: "로보락 세정제, 악세서리키트, dustbag(더스트백)만
-      // 포함해줘 그외 ACC는 제외"). "클리너통"(도크 세정액 탱크 부품)은 소모품이 아니라 부품이므로 "클리너" 매칭에서
-      // 제외하고, "더스트백 커버"도 백 자체가 아닌 커버 부품이므로 제외한다. 이 3종 제한은 저재고 알림 패널
-      // 표시에만 적용되며, 필터 상단의 esum 합계·카테고리 드롭다운 등 다른 화면에는 영향을 주지 않는다.
-      // 2026-08-26 갱신(11차): 데이터 재분류(F25/Dyad/H60/H5 계열 ACC 42종을 major='로봇청소기'에서
-      // 'Stand 청소기'로 이동, 아래 "카테고리/시리즈 재분류" 참고)로 인해 Stand 청소기에도 ACC 품목이 처음
-      // 생겼다. 로봇청소기와 동일한 소비재 3종 한정 원칙을 Stand 청소기 ACC에도 동일하게 적용한다(함수명을
-      // isAllowedRobotAcc → isAllowedAcc로 일반화). F25는 기존대로 완제품/ACC 구분 없이 전부 제외 유지.
-      const isAllowedAcc = name =>
-        (/세정제/.test(name) || (/클리너/.test(name) && !/클리너통/.test(name))) ||
-        name.includes('악세서리') ||
-        (/더스트백|dust ?bag/i.test(name) && !name.includes('커버'));
-      const isRobotTarget = it => it.major === '로봇청소기' && ((it.series === 'S10' || it.series === 'S9' || it.series === 'S8') || (it.kind === 'ACC' && isAllowedAcc(it.name)));
-      const isStandTarget = it => it.major === 'Stand 청소기' && it.series !== 'F25' && (it.kind === '완제품' || (it.kind === 'ACC' && isAllowedAcc(it.name)));
+      // 드롭다운 선택이 이 패널을 좁히지 않게 한다(브랜드/카테고리/창고 필터는 그대로 반영). 로봇청소기는
+      // S10/S9/S8만, Stand 청소기는 F25만 제외.
+      // 2026-08-26 갱신(14차, 사용자 지시): "구분"에서 ACC 포함을 선택해도 이 알림은 항상 본품(완제품) 기준으로만
+      // 집계한다 — 예전(10~11차)에는 ACC 포함 시 세정제·악세서리키트·더스트백 3종을 함께 보여줬으나, 이제는
+      // 구분 토글과 무관하게 완제품만 대상으로 하도록 되돌린다(아래 matchesTm/matchesPinned 호출의 kind 인자를
+      // kindMode 대신 '완제품'으로 고정 — kindMode==='전체'여도 ACC 품목은 항상 걸러진다).
+      const isRobotTarget = it => it.kind === '완제품' && it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8');
+      const isStandTarget = it => it.kind === '완제품' && it.major === 'Stand 청소기' && it.series !== 'F25';
       const rows = [];
       const tmRobotCandidates = [];
       if (tmSideOn || plSideOn) {
         items.forEach((it, i) => {
           const isTarget = isRobotTarget(it) || isStandTarget(it);
           if (!isTarget) return;
-          if (!matchesTm(it, brand, category, ['전체'], kindMode)) return;
+          if (!matchesTm(it, brand, category, ['전체'], '완제품')) return;
           if (isGraded(it.name) || isRefurb(it.name)) return;
           const qty = (tmSideOn ? dayArr[i][0] : 0) + (plSideOn ? dayArr[i][1] : 0);
           if (it.major === '로봇청소기') {
@@ -1541,7 +1554,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         PINNED.filter(u => u.source === 'UBUS').forEach(u => {
           const isTarget = isRobotTarget(u);
           if (!isTarget) return;
-          if (!matchesPinned(u, brand, category, ['전체'], kindMode)) return;
+          if (!matchesPinned(u, brand, category, ['전체'], '완제품')) return;
           if (isGraded(u.name) || isRefurb(u.name)) return;
           ubusCandidates.push({ name: u.name, series: u.series, qty: u.cur });
         });
@@ -1599,9 +1612,22 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     // 계산한다(buildItemBlock 안에서 idxsK/pinnedK를 매번 새로 구한다 — 상단의 idxs/pinnedMatched는 전역
     // kindMode 기준이라 이 용도로는 재사용하지 않음).
     function buildItemBlock(kindFilter, limit) {
+      // 2026-08-26 갱신(14차): kindFilter==='ACC'일 때는 브랜드·카테고리·구분·제품 필터는 그대로 matchesTm/
+      // matchesPinned에 맡기되(series 인자는 ['전체']로 건너뛰어 내부 체크를 비활성화), 시리즈만 accSeriesMatches
+      // (품목명 기반 추론)로 별도 확인한다 — 로봇청소기 ACC 대부분의 series 필드가 실제 시리즈명이 아니라
+      // 'ACC'로 뭉뚱그려져 있어 원래 방식(inSel(it.series, seriesArr))으로는 시리즈 필터링이 되지 않기 때문.
       const idxsK = [];
-      items.forEach((it, i) => { if (matchesTm(it, brand, category, series, '전체', product) && it.kind === kindFilter) idxsK.push(i); });
-      const pinnedK = PINNED.filter(u => matchesPinned(u, brand, category, series, '전체', product) && u.kind === kindFilter);
+      items.forEach((it, i) => {
+        if (it.kind !== kindFilter) return;
+        if (!matchesTm(it, brand, category, ['전체'], '전체', product)) return;
+        const seriesOk = kindFilter === 'ACC' ? accSeriesMatches(it, series) : inSel(it.series, series);
+        if (seriesOk) idxsK.push(i);
+      });
+      const pinnedK = PINNED.filter(u => {
+        if (u.kind !== kindFilter) return false;
+        if (!matchesPinned(u, brand, category, ['전체'], '전체', product)) return false;
+        return kindFilter === 'ACC' ? accSeriesMatches(u, series) : inSel(u.series, series);
+      });
       let headSuffix, legendHtml, bodyHtml;
       if (singleWarehouse && PARTNER_SIDE.includes(singleWarehouse)) {
         const scoped = pinnedK.filter(u => u.source === singleWarehouse);
@@ -1693,7 +1719,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
 
     const completeBlock = buildItemBlock('완제품', 20);
-    document.getElementById('item-list-head').textContent = `[완제품] 품목별 잔여재고 ${completeBlock.headSuffix}`;
+    document.getElementById('item-list-head').textContent = `[본품] 품목별 잔여재고 ${completeBlock.headSuffix}`;
     document.getElementById('item-bars').innerHTML = completeBlock.bodyHtml;
     document.getElementById('item-legend').innerHTML = completeBlock.legendHtml;
 
