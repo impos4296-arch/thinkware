@@ -75,6 +75,7 @@
     --accent-3pl: #3987e5;
     --accent-ubus: #d95926;
     --accent-weione: #c98500;
+    --accent-washer: #d55181;
     --accent-import: #938f81;
     --accent-3pl-wash: #16233a;
     --accent-ubus-wash: #33211a;
@@ -207,6 +208,21 @@
   }
   .field select:disabled { opacity: 0.45; cursor: not-allowed; }
   .field select:focus-visible { outline: 2px solid var(--accent-3pl); outline-offset: 1px; }
+  .field select[multiple] {
+    background-image: none;
+    padding: 5px;
+    height: auto;
+  }
+  .field select[multiple] option {
+    padding: 5px 8px;
+    border-radius: 5px;
+  }
+  .field select[multiple] option:checked {
+    background: linear-gradient(0deg, var(--accent-3pl) 0%, var(--accent-3pl) 100%);
+    color: #fff;
+  }
+  .field .multi-hint { font-weight: 500; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+  .multi-select-note { margin: 10px 0 24px; }
 
   .date-row {
     display: flex;
@@ -312,7 +328,7 @@
   .legend-mini span { display:inline-flex; align-items:center; gap:5px; }
   .legend-mini i { width:8px; height:8px; border-radius:2px; display:inline-block; }
 
-  .filter-scope-note { font-size: 12.5px; font-weight: 700; color: var(--note-blue); margin: 8px 0 0; }
+  .filter-scope-note { font-size: 12.5px; font-weight: 700; color: var(--note-blue); margin: 0 0 10px; }
 
   .low-stock-panel { margin: 0 0 20px; }
   .low-stock-panel .lsp-head { font-family: "Gothic A1", sans-serif; font-size: 14.5px; font-weight: 700; margin: 0 0 4px; color: var(--text-secondary); }
@@ -705,16 +721,16 @@
           </select>
         </div>
         <div class="field">
-          <label for="f-brand">브랜드</label>
-          <select id="f-brand"></select>
+          <label for="f-brand">브랜드 <span class="multi-hint">(중복 선택 가능)</span></label>
+          <select id="f-brand" multiple size="5"></select>
         </div>
         <div class="field">
-          <label for="f-category">카테고리</label>
-          <select id="f-category"></select>
+          <label for="f-category">카테고리 <span class="multi-hint">(중복 선택 가능)</span></label>
+          <select id="f-category" multiple size="5"></select>
         </div>
         <div class="field">
-          <label for="f-series">시리즈</label>
-          <select id="f-series"></select>
+          <label for="f-series">시리즈 <span class="multi-hint">(중복 선택 가능)</span></label>
+          <select id="f-series" multiple size="5"></select>
         </div>
         <div class="field">
           <label for="f-kind">구분</label>
@@ -724,6 +740,7 @@
           </div>
         </div>
       </div>
+      <p class="filter-scope-note multi-select-note">브랜드·카테고리·시리즈는 Ctrl(Mac은 ⌘) 키를 누른 채 클릭하면 여러 항목을 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다.</p>
 
       <div class="date-row">
         <label for="f-date">조회일자</label>
@@ -731,26 +748,16 @@
         <span class="date-badge" id="date-badge">2026-08-24</span>
       </div>
 
+      <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
       <div class="explorer-summary" id="esum"></div>
-      <p class="filter-scope-note" id="esum-scope-note">브랜드/카테고리/시리즈 필터가 "전체"이면 각 창고의 전체 재고 수량이, 특정 조건으로 좁히면 그 조건에 해당하는 보유재고 창고 수량만 표시됩니다.</p>
       <p class="ubus-pinned-note">UBUS·위니온·세탁기·수입창고 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
 
       <div class="explorer-body">
         <div class="explorer-col">
-          <h3 id="item-list-head">품목별 잔여재고 (TM 자체창고 + 3PL)</h3>
+          <h3 id="item-list-head">품목별 잔여재고 (전체 창고)</h3>
           <div class="item-bars" id="item-bars"></div>
-          <div class="legend-mini" id="item-legend">
-            <span><i style="background:var(--accent-tm)"></i>TM 자체창고</span>
-            <span><i style="background:var(--accent-3pl)"></i>3PL</span>
-          </div>
-        </div>
-        <div class="explorer-col">
-          <div class="low-stock-panel" id="low-stock-panel">
-            <h4 class="lsp-head">저재고 경보 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
-            <p class="lsp-sub">TM 자체창고 + 3PL 합계(조회일자 기준) · 필터 선택과 무관하게 항상 표시</p>
-            <div class="low-stock-tiers" id="low-stock-tiers"></div>
-          </div>
-          <h3 id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/24, TM+3PL 합계)</h3>
+          <div class="legend-mini" id="item-legend"></div>
+          <h3 style="margin-top:20px;" id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/24, 전체 창고 합계)</h3>
           <div class="trend-wrap">
             <div class="trend-head">
               <span class="lbl">선택한 조건의 일별 합계 추이</span>
@@ -758,10 +765,17 @@
             </div>
             <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
           </div>
+        </div>
+        <div class="explorer-col">
+          <div class="low-stock-panel" id="low-stock-panel">
+            <h4 class="lsp-head">재고 부족 알림 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
+            <p class="lsp-sub">TM 자체창고 + 3PL + UBUS 합계(수입창고 제외, B급/특가 재고 제외) · 필터 선택과 무관하게 항상 표시</p>
+            <div class="low-stock-tiers" id="low-stock-tiers"></div>
+          </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
           <div class="item-bars" id="inbound-bars"></div>
           <div class="legend-mini" id="inbound-legend"></div>
-          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준. 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다.</p>
+          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다.</p>
         </div>
       </div>
     </div>
@@ -871,6 +885,31 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     sel.appendChild(o);
   }
 
+  // 다중 선택 유틸(2026-08-26 추가): 브랜드/카테고리/시리즈 select에 multiple 속성을 부여해 여러 값을
+  // 동시에 선택할 수 있게 한다. "전체"는 필터 해제를 뜻하는 특수값이라 구체적인 값과 함께 선택되면 의미가
+  // 애매해지므로, 선택이 바뀔 때마다 "전체"와 구체적인 값이 함께 선택된 상태이면 "전체"를 자동으로 해제하고
+  // (사용자가 무언가를 구체적으로 고른 것으로 해석), 반대로 전부 해제되어 아무것도 선택되지 않으면 다시
+  // "전체"로 되돌린다(빈 선택은 곧 "필터 없음"과 같은 의미이므로).
+  function getSelectedValues(sel) {
+    const vals = Array.from(sel.selectedOptions).map(o => o.value);
+    return vals.length ? vals : ['전체'];
+  }
+  function normalizeMultiSelect(sel) {
+    const opts = Array.from(sel.options);
+    const vals = opts.filter(o => o.selected).map(o => o.value);
+    if (vals.length > 1 && vals.includes('전체')) {
+      opts.forEach(o => { if (o.value === '전체') o.selected = false; });
+    } else if (vals.length === 0) {
+      opts.forEach(o => { o.selected = (o.value === '전체'); });
+    }
+  }
+  function selectValues(sel, values) {
+    const set = new Set(values);
+    Array.from(sel.options).forEach(o => { o.selected = set.has(o.value); });
+  }
+  function selectAll(sel) { selectValues(sel, ['전체']); }
+  function inSel(val, arr) { return arr.includes('전체') || arr.includes(val); }
+
   function fillBrand() {
     elBrand.innerHTML = '';
     opt(elBrand, '전체', '전체');
@@ -884,22 +923,27 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       return (brandTotals[b] || 0) - (brandTotals[a] || 0);
     });
     ordered.forEach(b => opt(elBrand, b, b));
+    selectAll(elBrand);
   }
 
   function fillCategory() {
-    const brand = elBrand.value;
+    const brands = getSelectedValues(elBrand);
     elCategory.innerHTML = '';
     opt(elCategory, '전체', '전체');
     let majors = [];
-    if (brand === '전체') {
+    if (brands.includes('전체') || brands.length > 1) {
+      // 브랜드가 "전체"이거나 여러 브랜드가 동시에 선택된 경우: 해당 브랜드들의 카테고리를 모아서
+      // 대표 브랜드(최초 등장) 기준 categoryRank로 정렬한다(2026-08-25 전체 케이스 로직을 다중 선택으로 일반화).
+      const brandList = brands.includes('전체') ? Object.keys(catalog) : brands;
       const set = new Set();
-      const majorBrand = {}; // major -> 대표 브랜드(정렬용) — 카테고리명이 브랜드 간 겹치지 않으므로 최초 등장 브랜드로 고정
-      Object.keys(catalog).forEach(b => Object.keys(catalog[b]).forEach(k => {
+      const majorBrand = {};
+      brandList.forEach(b => Object.keys(catalog[b] || {}).forEach(k => {
         set.add(k);
         if (!(k in majorBrand)) majorBrand[k] = b;
       }));
       majors = Array.from(set).sort((a, b) => categoryRank(majorBrand[a], a) - categoryRank(majorBrand[b], b));
     } else {
+      const brand = brands[0];
       majors = Object.keys(catalog[brand] || {});
       const catList = CATEGORY_ORDER[brand];
       if (catList) {
@@ -913,34 +957,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
     majors.forEach(m => opt(elCategory, m, m));
     elCategory.disabled = majors.length <= 1;
+    selectAll(elCategory);
   }
 
   function fillSeries() {
-    const brand = elBrand.value;
-    const category = elCategory.value;
+    const brands = getSelectedValues(elBrand);
+    const categories = getSelectedValues(elCategory);
     elSeries.innerHTML = '';
     opt(elSeries, '전체', '전체');
+    const brandList = brands.includes('전체') ? Object.keys(catalog) : brands;
     let seriesSet = new Set();
-    if (category === '전체') {
-      if (brand === '전체') {
-        Object.values(catalog).forEach(m => Object.values(m).forEach(s => s.forEach(x=>seriesSet.add(x))));
-      } else {
-        Object.values(catalog[brand] || {}).forEach(s => s.forEach(x=>seriesSet.add(x)));
-      }
+    if (categories.includes('전체')) {
+      brandList.forEach(b => Object.values(catalog[b] || {}).forEach(s => s.forEach(x => seriesSet.add(x))));
     } else {
-      const src = brand === '전체'
-        ? Object.values(catalog).map(m=>m[category]).filter(Boolean)
-        : [ (catalog[brand]||{})[category] ].filter(Boolean);
-      src.forEach(s => s.forEach(x=>seriesSet.add(x)));
+      brandList.forEach(b => categories.forEach(c => {
+        const s = (catalog[b] || {})[c];
+        if (s) s.forEach(x => seriesSet.add(x));
+      }));
     }
     let list = Array.from(seriesSet).filter(s => s && s !== '전체');
-    // 카테고리가 단일 확정된 경우 SERIES_ORDER를 적용해 지정된 순서로 정렬 (2026-08-26 추가).
-    // category select가 '전체'로 표시되더라도(카테고리가 1개뿐이라 비활성화된 경우 포함) 실질적으로
-    // major가 단 하나로 고정되면 그 major의 SERIES_ORDER를 적용한다. 브랜드=전체이거나 major가
-    // 여러 개 혼재된 경우는 순서가 서로 달라 의미가 없으므로 건드리지 않음.
-    let effectiveMajor = category !== '전체' ? category : null;
-    if (!effectiveMajor && brand !== '전체') {
-      const brandMajors = Object.keys(catalog[brand] || {});
+    // 카테고리가 단일 확정된 경우 SERIES_ORDER를 적용해 지정된 순서로 정렬 (2026-08-26 추가, 다중 선택 대응으로 갱신).
+    // 선택된 카테고리가 정확히 1개이면 그 값을, 카테고리가 "전체"이고 선택된 브랜드가 정확히 1개이며 그
+    // 브랜드의 major가 1개뿐이면(카테고리가 1개뿐이라 비활성화된 경우 포함) 그 major를 유효 major로 사용한다.
+    // 브랜드/카테고리가 여러 개 혼재된 경우는 순서가 서로 달라 의미가 없으므로 건드리지 않음.
+    let effectiveMajor = null;
+    if (!categories.includes('전체') && categories.length === 1) {
+      effectiveMajor = categories[0];
+    } else if (brandList.length === 1) {
+      const brandMajors = Object.keys(catalog[brandList[0]] || {});
       if (brandMajors.length === 1) effectiveMajor = brandMajors[0];
     }
     const serList = effectiveMajor ? SERIES_ORDER[effectiveMajor] : null;
@@ -954,6 +998,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
     list.forEach(s => opt(elSeries, s, s));
     elSeries.disabled = list.length === 0;
+    selectAll(elSeries);
   }
 
   // 창고를 특정 값으로 고정하면(3PL/UBUS→로보락, 위니온→샤오미+TV, 세탁기→로보락+세탁건조기)
@@ -964,48 +1009,53 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     if (lock) {
       elBrand.innerHTML = '';
       opt(elBrand, lock.brand, lock.brand);
-      elBrand.value = lock.brand;
+      selectValues(elBrand, [lock.brand]);
       elBrand.disabled = true;
       if (lock.category) {
         elCategory.innerHTML = '';
         opt(elCategory, lock.category, lock.category);
-        elCategory.value = lock.category;
+        selectValues(elCategory, [lock.category]);
         elCategory.disabled = true;
       } else {
         fillCategory();
-        elCategory.value = '전체';
       }
       fillSeries();
     } else {
       elBrand.disabled = false;
       elCategory.disabled = false;
       fillBrand();
-      elBrand.value = '전체';
       fillCategory();
-      elCategory.value = '전체';
       fillSeries();
     }
   }
 
-  function matchesTm(it, brand, category, series, kind) {
+  function matchesTm(it, brands, categories, seriesArr, kind) {
     if (kind === '완제품' && it.kind !== '완제품') return false;
-    if (brand !== '전체' && it.brand !== brand) return false;
-    if (category !== '전체' && it.major !== category) return false;
-    if (series !== '전체' && it.series !== series) return false;
+    if (!inSel(it.brand, brands)) return false;
+    if (!inSel(it.major, categories)) return false;
+    if (!inSel(it.series, seriesArr)) return false;
     return true;
   }
-  function matchesPinned(u, brand, category, series, kind) {
+  function matchesPinned(u, brands, categories, seriesArr, kind) {
     if (kind === '완제품' && u.kind !== '완제품') return false;
-    if (brand !== '전체' && u.brand !== brand) return false;
-    if (category !== '전체' && u.major !== category) return false;
-    if (series !== '전체' && u.series !== series) return false;
+    if (!inSel(u.brand, brands)) return false;
+    if (!inSel(u.major, categories)) return false;
+    if (!inSel(u.series, seriesArr)) return false;
     return true;
+  }
+  // B급/특가(_S) 재고 판별 — 품목명이 "_B급" 또는 "_S"로 끝나는 품목(2026-08-26 추가).
+  // 저재고 경보 패널과 "이번 달 입고 수량" 패널에서는 정상 등급 재고만 의미가 있어 제외한다.
+  function isGraded(name) {
+    return /_B급$/.test(name) || /_S$/.test(name);
   }
 
   const fmt = n => n.toLocaleString('ko-KR');
 
   function render() {
-    const brand = elBrand.value, category = elCategory.value, series = elSeries.value;
+    // 2026-08-26: 브랜드/카테고리/시리즈가 다중 선택 가능해지면서 배열로 취급한다(getSelectedValues는 아무것도
+    // 선택되지 않았으면 ['전체']를 반환). matchesTm/matchesPinned의 inSel()이 '전체' 포함 여부와 배열 포함
+    // 여부를 함께 확인한다.
+    const brand = getSelectedValues(elBrand), category = getSelectedValues(elCategory), series = getSelectedValues(elSeries);
     const warehouse = elWarehouse.value;
     const date = String(Number(elDate.value));
     elDateBadge.textContent = '2026-08-' + String(elDate.value).padStart(2,'0');
@@ -1034,34 +1084,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       : (sumByWarehouse[warehouse] || 0);
     const tileClass = name => 'esum-tile' + (warehouse === name ? ' active' : '');
 
-    // esum 타일 표시값: 창고=전체일 때는 모든 타일이 현재 브랜드/카테고리/시리즈/구분 필터를 그대로 반영한다(기존 탐색 기능 유지).
-    // 특정 창고를 선택하면(잠금 여부 무관 — TM 자체창고/수입창고 포함), 선택된 그 창고만 필터 조건(브랜드/카테고리/시리즈/구분)에 맞춰
-    // 조회된 수량을 보여주고, 나머지 창고 타일은 필터에 눌려 0이 되지 않도록 브랜드/카테고리/시리즈를 무시한 전체 수량(구분 토글만 반영)으로
-    // 보여주면서 하이라이팅만 된다. "선택 조건 합계" 타일은 항상 실제 필터 조건 그대로 유지.
-    const esumLockActive = warehouse !== '전체';
-    function esumTileSum(name) {
-      const useFull = esumLockActive && name !== warehouse;
-      const b = useFull ? '전체' : brand;
-      const c = useFull ? '전체' : category;
-      const s = useFull ? '전체' : series;
-      if (name === 'TM 자체창고' || name === '3PL' || name === '수입창고') {
-        let sum = 0;
-        items.forEach((it, i) => {
-          if (!matchesTm(it, b, c, s, kindMode)) return;
-          if (name === 'TM 자체창고') sum += dayArr[i][0];
-          else if (name === '3PL') sum += dayArr[i][1];
-          else sum += (it.imp || 0);
-        });
-        return sum;
-      }
-      return PINNED.filter(u => u.source === name && matchesPinned(u, b, c, s, kindMode)).reduce((s2,u)=>s2+u.cur,0);
-    }
-    const tmTile = esumTileSum('TM 자체창고');
-    const plTile = esumTileSum('3PL');
-    const impTile = esumTileSum('수입창고');
-    const ubusTile = esumTileSum('UBUS');
-    const weioneTile = esumTileSum('위니온');
-    const washerTile = esumTileSum('세탁기');
+    // esum 타일 표시값(2026-08-26 단순화): 창고 선택 여부와 무관하게 7개 타일 전부 항상 현재
+    // 브랜드/카테고리/시리즈/구분 필터를 그대로 반영한다(tmSum/plSum/... 은 위에서 이미 현재 필터로 계산됨).
+    // 선택된 창고에는 테두리 강조(active)만 추가로 붙는다 — "필터가 전체면 전체 수량, 좁히면 그 조건 수량"이
+    // 모든 타일에 예외 없이 적용되어 위 안내 캡션과 항상 일치한다(예전에는 특정 창고를 선택하면 나머지 타일이
+    // 필터를 무시한 전체 수량으로 표시되는 예외가 있었으나, 캡션과 실제 표시가 어긋난다는 지적에 따라 제거함).
+    const tmTile = tmSum;
+    const plTile = plSum;
+    const impTile = impSum;
+    const ubusTile = ubusSum;
+    const weioneTile = weioneSum;
+    const washerTile = washerSum;
 
     const esum = document.getElementById('esum');
     esum.innerHTML = `
@@ -1074,17 +1107,28 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
 
-    // 저재고 경보 패널 (2026-08-26 추가): 로봇청소기 S10/S9/S8 시리즈 + Stand 청소기 카테고리 전체를 대상으로,
-    // 현재 필터(브랜드/카테고리/시리즈/구분)와 무관하게 항상 동일한 대상 품목을 훑어서 TM 자체창고+3PL 합계(조회일자 기준)가
-    // 200개 미만/200~499개/500~999개인 품목을 배타적 3단계로 나눠 보여준다. 목적은 재고 부족 상황을 첫 화면에서 바로 포착하는 것.
+    // 재고 부족 알림 패널(구 "저재고 경보", 2026-08-26 추가·2026-08-26 갱신): 로봇청소기 S10/S9/S8 시리즈 +
+    // Stand 청소기 카테고리 전체를 대상으로, 현재 필터(브랜드/카테고리/시리즈/구분)와 무관하게 항상 동일한 대상
+    // 품목을 훑어서 TM 자체창고+3PL(조회일자 기준)+UBUS(최신 스냅샷) 합계가 200개 미만/200~499개/500~999개인
+    // 품목을 배타적 3단계로 나눠 보여준다. 수입창고는 이 재고 수치에서 제외하고(사용자 지시), B급/특가(_S) 재고도
+    // 정상 등급 재고가 아니므로 제외한다. UBUS는 로봇청소기만 취급하므로 Stand 청소기는 TM+3PL만 해당된다.
     (function renderLowStock() {
       const rows = [];
       items.forEach((it, i) => {
         if (it.kind !== '완제품') return;
+        if (isGraded(it.name)) return;
         const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || it.major === 'Stand 청소기';
         if (!isTarget) return;
         const qty = dayArr[i][0] + dayArr[i][1];
-        rows.push({ name: it.name, tag: it.major === '로봇청소기' ? it.series : 'Stand 청소기', qty });
+        const tag = (it.major === '로봇청소기' ? it.series : 'Stand 청소기') + ' · TM+3PL';
+        rows.push({ name: it.name, tag, qty });
+      });
+      PINNED.filter(u => u.source === 'UBUS').forEach(u => {
+        if (u.kind !== '완제품') return;
+        if (isGraded(u.name)) return;
+        const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
+        if (!isTarget) return;
+        rows.push({ name: u.name, tag: u.series + ' · UBUS', qty: u.cur });
       });
       rows.sort((a, b) => a.qty - b.qty);
       const t200 = rows.filter(r => r.qty < 200);
@@ -1158,29 +1202,39 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         }).join('');
       }
     } else {
-      // warehouse === '전체': TM+3PL stacked, as before
-      const rowsTop = idxs.map(i => ({ name: items[i].name, tm: dayArr[i][0], pl: dayArr[i][1], brand: items[i].brand, major: items[i].major, series: items[i].series }))
-        .filter(r => r.tm + r.pl > 0)
-        .sort((a,b) => (b.tm+b.pl) - (a.tm+a.pl))
-        .slice(0, 20);
-      const rows = sortByPriority(rowsTop, r => r.tm + r.pl);
-      itemListHead.textContent =
-        `품목별 잔여재고 (TM 자체창고 + 3PL · 일자별 데이터 소스만, 합계 타일과 범위 다름) · ${idxs.length}개 품목 중 상위 ${rows.length}`;
-      itemLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span>`;
+      // warehouse === '전체'(2026-08-26 갱신): TM+3PL+수입창고+UBUS+위니온+세탁기, 전체 창고를 통합해서 보여준다.
+      // TM_DATA 품목은 같은 물리적 품목의 TM/3PL/수입창고 3개 필드를 그대로 한 막대에 스택하고, UBUS/위니온/세탁기는
+      // 품목명 체계가 TM 쪽과 달라(예: TM "Roborock_로봇청소기_S10 MaxV Ultra..." vs UBUS "로보락_로봇청소기 S10 MaxV
+      // Ultra (직배수형) [화이트]") 이름으로 안전하게 합산할 수 없으므로, 같은 통합 리스트 안에 별도 행(단색 바)으로
+      // 풀링해서 함께 순위를 매긴다 — 서로 다른 창고에 있는 실제로 구분되는 재고이므로 별도 행으로 보여주는 것이 정확하다.
+      const tmRows = idxs.map(i => {
+        const tm = dayArr[i][0], pl = dayArr[i][1], imp = items[i].imp || 0;
+        return {
+          name: items[i].name, qty: tm + pl + imp,
+          segs: [{ cls: 'seg-tm', val: tm }, { cls: 'seg-pl', val: pl }, { cls: 'seg-imp', val: imp }],
+          brand: items[i].brand, major: items[i].major, series: items[i].series,
+        };
+      }).filter(r => r.qty > 0);
+      const partnerRows = pinnedMatched.map(u => ({
+        name: u.name, qty: u.cur,
+        segs: [{ cls: SEG_OF_WAREHOUSE[u.source], val: u.cur }],
+        brand: u.brand, major: u.major, series: u.series,
+      })).filter(r => r.qty > 0);
+      const pool = tmRows.concat(partnerRows);
+      const rowsTop = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.qty);
+      itemListHead.textContent = `품목별 잔여재고 (전체 창고) · ${pool.length}개 품목 중 상위 ${rows.length}`;
+      itemLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span><span><i style="background:var(--accent-import)"></i>수입창고</span><span><i style="background:var(--accent-ubus)"></i>UBUS</span><span><i style="background:var(--accent-weione)"></i>위니온</span><span><i style="background:var(--accent-washer)"></i>세탁기</span>`;
       if (rows.length === 0) {
         itemBars.innerHTML = '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>';
       } else {
-        const max = Math.max(...rows.map(r=>r.tm+r.pl));
+        const max = Math.max(...rows.map(r=>r.qty));
         itemBars.innerHTML = rows.map(r => {
-          const w = Math.max(2, Math.round((r.tm+r.pl)/max*100));
-          const tmW = (r.tm+r.pl) ? (r.tm/(r.tm+r.pl)*100) : 0;
-          const plW = 100 - tmW;
+          const w = Math.max(2, Math.round(r.qty/max*100));
+          const segsHtml = r.segs.filter(s => s.val > 0).map(s => `<div class="${s.cls}" style="width:${(s.val/r.qty*100)}%"></div>`).join('');
           return `<div class="item-bar-row">
-            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.tm+r.pl)}개</span></div>
-            <div class="stack-track" style="width:${w}%">
-              <div class="seg-tm" style="width:${tmW}%"></div>
-              <div class="seg-pl" style="width:${plW}%"></div>
-            </div>
+            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.qty)}개</span></div>
+            <div class="stack-track" style="width:${w}%">${segsHtml}</div>
           </div>`;
         }).join('');
       }
@@ -1196,7 +1250,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       inboundBars.innerHTML = `<p class="empty-note">${warehouse}은(는) 입고 수량 데이터가 없습니다.</p>`;
     } else if (PARTNER_SIDE.includes(warehouse)) {
       const seg = SEG_OF_WAREHOUSE[warehouse];
-      const rowsTop = pinnedMatched.filter(u => u.source === warehouse && (u.inbound||0) > 0)
+      const rowsTop = pinnedMatched.filter(u => u.source === warehouse && (u.inbound||0) > 0 && !isGraded(u.name))
         .map(u => ({ name: u.name, val: u.inbound, brand: u.brand, major: u.major, series: u.series }))
         .sort((a,b) => b.val - a.val)
         .slice(0, 20);
@@ -1218,7 +1272,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     } else if (warehouse === 'TM 자체창고' || warehouse === '3PL') {
       const key = warehouse === 'TM 자체창고' ? 'inTm' : 'inPl';
       const seg = SEG_OF_WAREHOUSE[warehouse];
-      const rowsTop = idxs.map(i => ({ name: items[i].name, val: items[i][key]||0, brand: items[i].brand, major: items[i].major, series: items[i].series }))
+      const rowsTop = idxs.filter(i => !isGraded(items[i].name)).map(i => ({ name: items[i].name, val: items[i][key]||0, brand: items[i].brand, major: items[i].major, series: items[i].series }))
         .filter(r => r.val > 0)
         .sort((a,b) => b.val - a.val)
         .slice(0, 20);
@@ -1238,40 +1292,58 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         }).join('');
       }
     } else {
-      // warehouse === '전체': TM매입+교환반품(TM 자체창고 입고) + 3PL 입고, stacked
-      const rowsTop = idxs.map(i => ({ name: items[i].name, inTm: items[i].inTm||0, inPl: items[i].inPl||0, brand: items[i].brand, major: items[i].major, series: items[i].series }))
-        .filter(r => r.inTm + r.inPl > 0)
-        .sort((a,b) => (b.inTm+b.inPl) - (a.inTm+a.inPl))
-        .slice(0, 20);
-      const rows = sortByPriority(rowsTop, r => r.inTm + r.inPl);
-      inboundListHead.textContent = '제품별 이번 달 입고 수량 (TM 자체창고 + 3PL · 일자별 데이터 소스만)';
-      inboundLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span>`;
+      // warehouse === '전체'(2026-08-26 갱신): TM 자체창고+3PL+UBUS+세탁기 이번 달 입고를 통합해서 보여준다.
+      // 위니온·수입창고는 애초에 입고 데이터가 없어 제외되고, TM_DATA 안의 세탁건조기 스텁 품목(실제 세탁기
+      // 창고 입고와 무관한 잔여 데이터 — 항상 TM/3PL 재고가 0인 자리표시자 행)은 제외해 세탁기 입고처럼 보이는
+      // 오해를 없앤다. B급/특가(_S) 재고도 정상 등급이 아니므로 제외한다.
+      const tmRows = idxs
+        .filter(i => items[i].major !== '세탁건조기' && !isGraded(items[i].name))
+        .map(i => {
+          const inTm = items[i].inTm || 0, inPl = items[i].inPl || 0;
+          return {
+            name: items[i].name, qty: inTm + inPl,
+            segs: [{ cls: 'seg-tm', val: inTm }, { cls: 'seg-pl', val: inPl }],
+            brand: items[i].brand, major: items[i].major, series: items[i].series,
+          };
+        }).filter(r => r.qty > 0);
+      const partnerRows = pinnedMatched
+        .filter(u => (u.source === 'UBUS' || u.source === '세탁기') && (u.inbound||0) > 0 && !isGraded(u.name))
+        .map(u => ({
+          name: u.name, qty: u.inbound,
+          segs: [{ cls: SEG_OF_WAREHOUSE[u.source], val: u.inbound }],
+          brand: u.brand, major: u.major, series: u.series,
+        }));
+      const pool = tmRows.concat(partnerRows);
+      const rowsTop = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, 20);
+      const rows = sortByPriority(rowsTop, r => r.qty);
+      inboundListHead.textContent = '제품별 이번 달 입고 수량 (전체 창고)';
+      inboundLegend.innerHTML = `<span><i style="background:var(--accent-tm)"></i>TM 자체창고</span><span><i style="background:var(--accent-3pl)"></i>3PL</span><span><i style="background:var(--accent-ubus)"></i>UBUS</span><span><i style="background:var(--accent-washer)"></i>세탁기</span>`;
       if (rows.length === 0) {
         inboundBars.innerHTML = '<p class="empty-note">이번 달 입고 내역이 없습니다.</p>';
       } else {
-        const max = Math.max(...rows.map(r=>r.inTm+r.inPl));
+        const max = Math.max(...rows.map(r=>r.qty));
         inboundBars.innerHTML = rows.map(r => {
-          const total = r.inTm + r.inPl;
-          const w = Math.max(2, Math.round(total/max*100));
-          const tmW = total ? (r.inTm/total*100) : 0;
-          const plW = 100 - tmW;
+          const w = Math.max(2, Math.round(r.qty/max*100));
+          const segsHtml = r.segs.filter(s => s.val > 0).map(s => `<div class="${s.cls}" style="width:${(s.val/r.qty*100)}%"></div>`).join('');
           return `<div class="item-bar-row">
-            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(total)}개</span></div>
-            <div class="stack-track" style="width:${w}%">
-              <div class="seg-tm" style="width:${tmW}%"></div>
-              <div class="seg-pl" style="width:${plW}%"></div>
-            </div>
+            <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.qty)}개</span></div>
+            <div class="stack-track" style="width:${w}%">${segsHtml}</div>
           </div>`;
         }).join('');
       }
     }
 
-    // trend — TM+3PL by default; a single TM-side warehouse narrows the trend to just that source
+    // trend — 창고=전체일 때는 전체 창고(TM+3PL 일별 변동분 + 수입창고/UBUS/위니온/세탁기 스냅샷 고정 합계) 기준으로
+    // 보여준다(2026-08-26 갱신). TM 자체창고/3PL을 단독 선택하면 해당 소스만의 일자별 추이로 좁혀지고(기존과 동일),
+    // 그 외 파트너 창고(UBUS/위니온/세탁기/수입창고)를 선택한 경우는 여전히 TM+3PL 추이로 보여준다(그 창고들은
+    // 날짜별 데이터가 없어 자체 추이를 낼 수 없으므로 기존 동작을 그대로 유지 — "필터 선택시엔 기존처럼" 원칙).
     const trendTitle = document.getElementById('trend-head-title');
-    let trendLabel = 'TM+3PL 합계 · 일자별 데이터 소스만', trendKey = 'both';
+    let trendLabel = 'TM+3PL 합계', trendKey = 'both';
     if (warehouse === 'TM 자체창고') { trendLabel = 'TM 자체창고'; trendKey = 'tm'; }
     else if (warehouse === '3PL') { trendLabel = '3PL'; trendKey = 'pl'; }
+    else if (warehouse === '전체') { trendLabel = '전체 창고 합계'; trendKey = 'full'; }
     trendTitle.textContent = `선택 구간 재고 추이 (8/1 – 8/24, ${trendLabel})`;
+    const otherConst = impSum + ubusSum + weioneSum + washerSum; // 수입창고+UBUS+위니온+세탁기(현재 필터 반영, 날짜와 무관한 고정 스냅샷 합계)
     const trendPoints = dayKeys.map(d => {
       const arr = days[String(d)];
       let s = 0;
@@ -1280,10 +1352,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         else if (trendKey === 'pl') s += arr[i][1];
         else s += arr[i][0] + arr[i][1];
       });
+      if (trendKey === 'full') s += otherConst;
       return s;
     });
     renderTrend(trendPoints, dayKeys);
-    const trendNow = trendKey === 'tm' ? tmSum : (trendKey === 'pl' ? plSum : tmSum+plSum);
+    const trendNow = trendKey === 'tm' ? tmSum : (trendKey === 'pl' ? plSum : (trendKey === 'full' ? total : tmSum+plSum));
     document.getElementById('trend-now').textContent = fmt(trendNow) + '개';
   }
 
@@ -1319,9 +1392,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   }
 
   elWarehouse.addEventListener('change', () => { applyWarehouseLock(); render(); });
-  elBrand.addEventListener('change', () => { fillCategory(); fillSeries(); render(); });
-  elCategory.addEventListener('change', () => { fillSeries(); render(); });
-  elSeries.addEventListener('change', render);
+  elBrand.addEventListener('change', () => { normalizeMultiSelect(elBrand); fillCategory(); fillSeries(); render(); });
+  elCategory.addEventListener('change', () => { normalizeMultiSelect(elCategory); fillSeries(); render(); });
+  elSeries.addEventListener('change', () => { normalizeMultiSelect(elSeries); render(); });
   elDate.addEventListener('input', render);
   elKindGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-kind]');
