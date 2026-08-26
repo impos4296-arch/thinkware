@@ -383,6 +383,27 @@
   .stack-track .seg-we { background: var(--accent-weione); height:100%; }
   .stack-track .seg-wa { background: var(--accent-washer); height:100%; }
   .stack-track .seg-imp { background: var(--accent-import); height:100%; }
+  .stack-track > div[data-wh] { cursor: pointer; }
+
+  /* 2026-08-26 추가(16차, 사용자 지시): 재고 막대의 창고별 색상 구간에 마우스를 올리거나(PC) 터치하면
+     (모바일) 창고명·수량을 보여주는 툴팁. */
+  .seg-tooltip {
+    position: fixed;
+    z-index: 200;
+    background: var(--text-primary);
+    color: var(--surface);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 9px;
+    border-radius: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -100%);
+    transition: opacity .1s;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  }
+  .seg-tooltip.show { opacity: 1; }
 
   .empty-note {
     font-size: 13px;
@@ -796,6 +817,7 @@
   </header>
 
   <p class="landscape-tip">📱 휴대폰으로 보실 때는 화면을 가로로 돌려서 보시면 표와 그래프를 더 편하게 확인하실 수 있습니다.</p>
+  <div id="seg-tooltip" class="seg-tooltip" role="tooltip"></div>
 
   <section aria-labelledby="explorer-head">
     <div class="section-head">
@@ -1003,6 +1025,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   // 2026-08-26 추가(12차): renderInboundChart에서 stack-track용 seg 클래스(seg-tm 등)를 SVG fill 색상으로
   // 변환할 때 쓰는 역참조 맵. ACCENT_OF_WAREHOUSE의 값(창고명 키)과 동일한 CSS 변수를 seg 클래스 키로 재매핑.
   const SEG_COLOR_VAR = { 'seg-tm': '--accent-tm', 'seg-pl': '--accent-3pl', 'seg-imp': '--accent-import', 'seg-ub': '--accent-ubus', 'seg-we': '--accent-weione', 'seg-wa': '--accent-washer' };
+  // 2026-08-26 추가(16차, 사용자 지시): 재고 막대의 창고별 색상 구간에 마우스를 올리면(PC)/터치하면(모바일)
+  // 그 구간이 어느 창고의 몇 개인지 보여주는 툴팁에 쓰는 seg 클래스→창고명 매핑.
+  const SEG_LABEL = { 'seg-tm': 'TM 자체창고', 'seg-pl': '3PL', 'seg-imp': '수입창고', 'seg-ub': 'UBUS', 'seg-we': '위니온', 'seg-wa': '세탁기' };
   const elBrand = document.getElementById('f-brand');
   const elCategory = document.getElementById('f-category');
   const elSeries = document.getElementById('f-series');
@@ -1322,11 +1347,19 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
 
   // 2026-08-26 추가: products 인자(제품 필터)는 기존 호출부를 모두 건드리지 않도록 기본값을 ['전체']로
   // 둔다 — 인자를 넘기지 않으면 이전과 동일하게 동작(제품 필터 미적용)하고, 넘기면 품목명까지 좁혀진다.
+  // 2026-08-26 갱신(16차, 사용자 지시): ACC 포함 + 시리즈=S10처럼 구체적인 시리즈를 고른 상태에서 "제품"
+  // 필터(및 이 함수를 쓰는 esum/재고추이 등)가 ACC 품목을 완전히 걸러내던 문제 — series 필드가 'ACC'로
+  // 뭉뚱그려진 로봇청소기 ACC 품목은 inSel(it.series, seriesArr)로는 절대 걸리지 않았다. accSeriesMatches
+  // (이름 기반 시리즈 추론, [ACC] 목록에 이미 쓰이던 함수)를 ACC 품목에는 그대로 재사용하고, 그 외(완제품
+  // 등)는 기존과 동일하게 series 필드로 판단한다.
+  function seriesFieldMatches(entity, seriesArr) {
+    return entity.kind === 'ACC' ? accSeriesMatches(entity, seriesArr) : inSel(entity.series, seriesArr);
+  }
   function matchesTm(it, brands, categories, seriesArr, kind, products = ['전체']) {
     if (kind === '완제품' && it.kind !== '완제품') return false;
     if (!inSel(it.brand, brands)) return false;
     if (!inSel(it.major, categories)) return false;
-    if (!inSel(it.series, seriesArr)) return false;
+    if (!seriesFieldMatches(it, seriesArr)) return false;
     if (!productMatches(it.name, products)) return false;
     return true;
   }
@@ -1334,7 +1367,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     if (kind === '완제품' && u.kind !== '완제품') return false;
     if (!inSel(u.brand, brands)) return false;
     if (!inSel(u.major, categories)) return false;
-    if (!inSel(u.series, seriesArr)) return false;
+    if (!seriesFieldMatches(u, seriesArr)) return false;
     if (!productMatches(u.name, products)) return false;
     return true;
   }
@@ -1477,8 +1510,72 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       uniq.forEach(n => { ROBOT_ALIAS_CANON[n] = canon; });
     });
   })();
+
+  // 2026-08-26 추가(16차, 사용자 지시): ACC(액세서리) 품목도 TM측과 UBUS측 표기가 서로 다른 경우(예: TM
+  // "로보락_S10 MaxV Ultra_악세서리키트_Accessories Kit_8.02.0498" ↔ UBUS "로보락_S10 MaxV Ultra_악세서리키트")
+  // 같은 제품으로 합쳐야 하지만, 완제품용 robotFullKey(시리즈 필드 기반 키)는 ACC에는 안전하지 않다 — ACC는
+  // series 필드가 전부 'ACC'로 뭉뚱그려져 있어서, 이름에 "MaxV Ultra"가 들어간 서로 다른 시리즈의 악세서리
+  // 키트끼리(S8/S9/S10 등) 키가 우연히 겹쳐 잘못 합쳐질 위험이 크다(실제로 이 문제 때문에 [ACC] 목록에서
+  // TM+UBUS가 전혀 합쳐지지 않고 있었다). 그래서 ACC는 별도 판단: 이름에서 추론한 시리즈 토큰이 양쪽 다
+  // 정확히 1개이고 서로 같으며, 브랜드·시리즈 토큰을 뺀 나머지 설명이 한쪽이 다른 쪽의 접두어(prefix)인
+  // 경우에만 매칭한다(TM 쪽이 보통 "...악세서리키트_Accessories Kit_코드"처럼 UBUS 쪽 이름 뒤에 설명을 더
+  // 붙인 형태라 접두어 관계가 성립함).
+  function accPartCore(name, seriesToken) {
+    let n = name.replace(/로보락|Roborock/gi, '');
+    if (seriesToken) n = n.replace(new RegExp(seriesToken.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '');
+    return n.replace(/[\s_\-().[\]]/g, '').toLowerCase();
+  }
+  function accAliasMatch(nameA, nameB) {
+    const tokA = inferAccSeriesTokens(nameA), tokB = inferAccSeriesTokens(nameB);
+    if (tokA.length !== 1 || tokB.length !== 1 || tokA[0] !== tokB[0]) return false;
+    const coreA = accPartCore(nameA, tokA[0]), coreB = accPartCore(nameB, tokB[0]);
+    if (!coreA || !coreB) return false;
+    return coreA.startsWith(coreB) || coreB.startsWith(coreA);
+  }
+  // buildItemBlock의 ACC 병합(창고=전체/다중)에서 재사용 — matchRobotOrWasher와 같은 형태({merged,
+  // unmatchedTm, unmatchedPartner})를 반환한다.
+  function matchAccItems(tmCandidates, partnerCandidates) {
+    const usedTm = new Array(tmCandidates.length).fill(false);
+    const usedPartner = new Array(partnerCandidates.length).fill(false);
+    const merged = [];
+    tmCandidates.forEach((t, ti) => {
+      for (let pi = 0; pi < partnerCandidates.length; pi++) {
+        if (usedPartner[pi]) continue;
+        if (accAliasMatch(t.name, partnerCandidates[pi].name)) {
+          merged.push({ t, p: partnerCandidates[pi] }); usedTm[ti] = true; usedPartner[pi] = true; break;
+        }
+      }
+    });
+    const unmatchedTm = tmCandidates.filter((_, i) => !usedTm[i]);
+    const unmatchedPartner = partnerCandidates.filter((_, i) => !usedPartner[i]);
+    return { merged, unmatchedTm, unmatchedPartner };
+  }
+  const ACC_ALIAS_CANON = {}; // rawName -> canonical(대표) 표시 이름
+  (function buildAccAliasMap() {
+    const names = [];
+    items.forEach(it => { if (it.kind === 'ACC' && it.major === '로봇청소기') names.push(it.name); });
+    PINNED.forEach(u => { if (u.kind === 'ACC' && u.major === '로봇청소기') names.push(u.name); });
+    const uniq = Array.from(new Set(names));
+    const parent = uniq.map((_, i) => i);
+    function find(x) { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; }
+    function union(a, b) { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+    for (let i = 0; i < uniq.length; i++) {
+      for (let j = i + 1; j < uniq.length; j++) {
+        if (accAliasMatch(uniq[i], uniq[j])) union(i, j);
+      }
+    }
+    const groups = {};
+    uniq.forEach((n, i) => { const r = find(i); (groups[r] = groups[r] || []).push(n); });
+    Object.values(groups).forEach(groupNames => {
+      if (groupNames.length < 2) return;
+      // 표시 이름은 더 길고 자세한(보통 코드가 포함된 TM 쪽) 이름을 대표로 사용한다.
+      const canon = groupNames.slice().sort((a, b) => b.length - a.length)[0];
+      groupNames.forEach(n => { ACC_ALIAS_CANON[n] = canon; });
+    });
+  })();
+
   function canonicalProductName(name) {
-    return ROBOT_ALIAS_CANON[name] || name;
+    return ROBOT_ALIAS_CANON[name] || ACC_ALIAS_CANON[name] || name;
   }
   // "제품" 필터(products)는 canonicalProductName으로 병합된 대표 이름을 옵션값으로 가지므로, 원본 품목명
   // 하나하나를 그 products 배열과 비교할 때도 대표 이름으로 변환해서 비교해야 매칭 상대(로보락 표기 쪽)도
@@ -1486,7 +1583,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
   function productMatches(name, products) {
     if (products.includes('전체')) return true;
     if (products.includes(name)) return true;
-    const canon = ROBOT_ALIAS_CANON[name];
+    const canon = ROBOT_ALIAS_CANON[name] || ACC_ALIAS_CANON[name];
     return !!canon && products.includes(canon);
   }
 
@@ -1706,7 +1803,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
             const w = Math.max(2, Math.round(r.cur/max*100));
             return `<div class="item-bar-row">
               <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.cur)}개</span></div>
-              <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%"></div></div>
+              <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="${escXml(singleWarehouse)}" data-qty="${r.cur}"></div></div>
             </div>`;
           }).join('');
         })();
@@ -1728,7 +1825,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
             const w = Math.max(2, Math.round(r.val/max*100));
             return `<div class="item-bar-row">
               <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
-              <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%"></div></div>
+              <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="${escXml(singleWarehouse)}" data-qty="${r.val}"></div></div>
             </div>`;
           }).join('');
         })();
@@ -1754,8 +1851,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         const partnerRobotAll = partnerRowsAll.filter(r => r.major === '로봇청소기');
         const partnerWasherAll = partnerRowsAll.filter(r => r.major === '세탁건조기');
         const partnerOtherAll = partnerRowsAll.filter(r => r.major !== '로봇청소기' && r.major !== '세탁건조기');
-        const robotMatch = matchRobotOrWasher(tmRobotAll, partnerRobotAll, false);
-        const washerMatch = matchRobotOrWasher(tmWasherAll, partnerWasherAll, true);
+        // 2026-08-26 갱신(16차): robotFullKey(시리즈 필드 기반)는 ACC에는 안전하지 않다(위 accAliasMatch
+        // 설명 참고) — kindFilter==='완제품'일 때만 기존 robotMatchKey 매칭을 쓰고, ACC는 matchAccItems
+        // (이름 기반, 시리즈 토큰 정확히 일치 + 접두어 관계)로 별도 병합한다.
+        const robotMatch = kindFilter === '완제품'
+          ? matchRobotOrWasher(tmRobotAll, partnerRobotAll, false)
+          : matchAccItems(tmRobotAll, partnerRobotAll);
+        const washerMatch = kindFilter === '완제품'
+          ? matchRobotOrWasher(tmWasherAll, partnerWasherAll, true)
+          : { merged: [], unmatchedTm: tmWasherAll, unmatchedPartner: partnerWasherAll };
         const mergeRow = ({ t, p }) => ({ name: t.name, qty: t.qty + p.qty, segs: t.segs.concat(p.segs), brand: t.brand, major: t.major, series: t.series });
         const tmRows = tmOtherAll.concat(robotMatch.unmatchedTm, washerMatch.unmatchedTm, robotMatch.merged.map(mergeRow), washerMatch.merged.map(mergeRow));
         const partnerRows = partnerOtherAll.concat(robotMatch.unmatchedPartner, washerMatch.unmatchedPartner);
@@ -1772,7 +1876,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
           const max = Math.max(...rows.map(r=>r.qty));
           return rows.map(r => {
             const w = Math.max(2, Math.round(r.qty/max*100));
-            const segsHtml = r.segs.filter(s => s.val > 0).map(s => `<div class="${s.cls}" style="width:${(s.val/r.qty*100)}%"></div>`).join('');
+            const segsHtml = r.segs.filter(s => s.val > 0).map(s => `<div class="${s.cls}" style="width:${(s.val/r.qty*100)}%" data-wh="${escXml(SEG_LABEL[s.cls] || s.cls)}" data-qty="${s.val}"></div>`).join('');
             return `<div class="item-bar-row">
               <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.qty)}개</span></div>
               <div class="stack-track" style="width:${w}%">${segsHtml}</div>
@@ -2016,6 +2120,50 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     if (!(lock && lock.category)) { fillCategory(); }
     fillSeries();
     render();
+  });
+
+  // 2026-08-26 추가(16차, 사용자 지시): 재고 막대의 창고별 색상 구간(.stack-track > div[data-wh])에
+  // 마우스를 올리면(PC) 또는 터치하면(모바일) 창고명·수량 툴팁을 보여준다. 매번 render()로 다시 그려지는
+  // 요소라 개별 리스너 대신 document 위임(event delegation)으로 처리한다.
+  const segTooltip = document.getElementById('seg-tooltip');
+  function positionSegTooltip(x, y) {
+    const pad = 8;
+    const w = segTooltip.offsetWidth || 60;
+    const clampedX = Math.min(Math.max(x, w / 2 + pad), window.innerWidth - w / 2 - pad);
+    segTooltip.style.left = clampedX + 'px';
+    segTooltip.style.top = Math.max(y, 28) + 'px';
+  }
+  function showSegTooltip(el, x, y) {
+    const wh = el.dataset.wh;
+    if (!wh) return;
+    segTooltip.textContent = `${wh}: ${fmt(Number(el.dataset.qty) || 0)}개`;
+    segTooltip.classList.add('show');
+    positionSegTooltip(x, y);
+  }
+  function hideSegTooltip() { segTooltip.classList.remove('show'); }
+  document.addEventListener('mouseover', e => {
+    const seg = e.target.closest('.stack-track > div[data-wh]');
+    if (seg) showSegTooltip(seg, e.clientX, e.clientY - 12);
+  });
+  document.addEventListener('mousemove', e => {
+    if (!segTooltip.classList.contains('show')) return;
+    const seg = e.target.closest('.stack-track > div[data-wh]');
+    if (seg) positionSegTooltip(e.clientX, e.clientY - 12);
+  });
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('.stack-track > div[data-wh]')) hideSegTooltip();
+  });
+  // 모바일: 터치(탭)하면 툴팁을 보여주고, 다른 곳을 탭하면 닫는다(클릭 이벤트는 데스크톱 클릭과 모바일
+  // 탭 모두에서 발생하므로 하나의 리스너로 처리 가능).
+  document.addEventListener('click', e => {
+    const seg = e.target.closest('.stack-track > div[data-wh]');
+    if (seg) {
+      const rect = seg.getBoundingClientRect();
+      showSegTooltip(seg, rect.left + rect.width / 2, rect.top - 6);
+      e.stopPropagation();
+    } else {
+      hideSegTooltip();
+    }
   });
 
   applyWarehouseLock();
