@@ -1069,7 +1069,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const labelEl = btn.querySelector('.msel-btn-label');
     const panel = wrap.querySelector('.msel-panel');
     const optsHost = panel.querySelector('.msel-opts') || panel;
-    const opts = Array.from(sel.options);
+    let opts = Array.from(sel.options);
+    // 2026-08-26 추가(15차, 사용자 지시): "제품" 필터는 옵션이 많아(수백 개) 이미 선택한 품목을 다시 찾기
+    // 어려우므로, 선택된 품목("전체" 제외)을 목록 맨 위로 올려서 보여준다. 선택되지 않은 나머지 품목의
+    // 상대 순서(수량 내림차순 등 기존 정렬)는 그대로 유지한다.
+    if (key === 'product') {
+      const selected = opts.filter(o => o.selected && o.value !== '전체');
+      const rest = opts.filter(o => !(o.selected && o.value !== '전체'));
+      opts = selected.concat(rest);
+    }
     optsHost.innerHTML = opts.map(o => `<label class="msel-opt${o.disabled ? ' disabled' : ''}"><input type="checkbox" value="${o.value}"${o.selected ? ' checked' : ''}${o.disabled ? ' disabled' : ''}><span>${o.textContent}</span></label>`).join('');
     const searchEl = panel.querySelector('.msel-search');
     if (searchEl && searchEl.value.trim()) filterMselOptions(key, searchEl.value);
@@ -1254,15 +1262,21 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const brands = getSelectedValues(elBrand);
     const categories = getSelectedValues(elCategory);
     const seriesArr = getSelectedValues(elSeries);
+    // 2026-08-26 갱신(15차, 사용자 지시): "로보락_"/"Roborock_" 표기 차이만 있는 동일 제품(예: S10 MaxV
+    // Ultra)은 canonicalProductName으로 대표 이름 하나로 합쳐서 옵션을 만들고, 수량도 두 표기의 합계로
+    // 보여준다. B급/리퍼 재고는 canonicalProductName이 원래 이름을 그대로 반환하므로(병합 대상이 아님)
+    // 자동으로 별도 품목으로 남는다.
     const nameQty = {};
     items.forEach((it, i) => {
       if (!matchesTm(it, brands, categories, seriesArr, kindMode, ['전체'])) return;
       const latest = days[String(maxDay)][i];
-      nameQty[it.name] = (nameQty[it.name] || 0) + latest[0] + latest[1];
+      const key = canonicalProductName(it.name);
+      nameQty[key] = (nameQty[key] || 0) + latest[0] + latest[1];
     });
     PINNED.forEach(u => {
       if (!matchesPinned(u, brands, categories, seriesArr, kindMode, ['전체'])) return;
-      nameQty[u.name] = (nameQty[u.name] || 0) + (u.cur || 0);
+      const key = canonicalProductName(u.name);
+      nameQty[key] = (nameQty[key] || 0) + (u.cur || 0);
     });
     elProduct.innerHTML = '';
     opt(elProduct, '전체', '전체');
@@ -1313,7 +1327,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     if (!inSel(it.brand, brands)) return false;
     if (!inSel(it.major, categories)) return false;
     if (!inSel(it.series, seriesArr)) return false;
-    if (!inSel(it.name, products)) return false;
+    if (!productMatches(it.name, products)) return false;
     return true;
   }
   function matchesPinned(u, brands, categories, seriesArr, kind, products = ['전체']) {
@@ -1321,7 +1335,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     if (!inSel(u.brand, brands)) return false;
     if (!inSel(u.major, categories)) return false;
     if (!inSel(u.series, seriesArr)) return false;
-    if (!inSel(u.name, products)) return false;
+    if (!productMatches(u.name, products)) return false;
     return true;
   }
   // B급/특가(_S) 재고 판별 — 품목명이 "_B급", "_B" 또는 "_S"로 끝나는 품목(2026-08-26 추가·갱신).
@@ -1435,6 +1449,45 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     const unmatchedTm = tmCandidates.filter((_, i) => !usedTm[i]);
     const unmatchedPartner = partnerCandidates.filter((_, i) => !usedPartner[i]);
     return { merged, unmatchedTm, unmatchedPartner };
+  }
+
+  // 2026-08-26 추가(15차, 사용자 지시): "제품" 필터·품목명에서 "로보락_"/"Roborock_" 표기 차이만 있을 뿐
+  // 같은 물리적 완제품(예: "Roborock_로봇청소기_S10 MaxV Ultra_본체+울트라도크 세트(직배수)_화이트" ↔
+  // "로보락_로봇청소기 S10 MaxV Ultra (직배수형) [화이트]")을 하나의 제품으로 합쳐 보여준다. 이미 [본품]
+  // 잔여재고 리스트(창고=전체/다중)에서 TM·UBUS 합산에 쓰던 robotFullKey/robotMatchKey를 그대로 재사용해
+  // 일관된 기준을 유지한다 — B급(_B/_S)·리퍼 재고는 robotMatchKey가 null을 반환해 자동으로 병합 대상에서
+  // 제외되므로(별도 품목으로 그대로 남음) 사용자 지시("B급 재고는 별도 품목으로 구분")를 그대로 만족한다.
+  // 표시 이름은 영문 "Roborock" 표기가 있는 쪽을 우선 사용한다(사용자 지시: "제품명 필터에는 Roborock
+  // 제품명으로만 보여주되 로보락 표기도 동일 수량으로 포함").
+  const ROBOT_ALIAS_CANON = {}; // rawName -> canonical(대표) 표시 이름
+  (function buildRobotAliasMap() {
+    const groups = {};
+    function collect(name, series, kind, major) {
+      if (kind !== '완제품' || major !== '로봇청소기') return;
+      const key = robotFullKey(name, series);
+      if (key == null) return;
+      (groups[key] = groups[key] || []).push(name);
+    }
+    items.forEach(it => collect(it.name, it.series, it.kind, it.major));
+    PINNED.forEach(u => collect(u.name, u.series, u.kind, u.major));
+    Object.values(groups).forEach(names => {
+      const uniq = Array.from(new Set(names));
+      if (uniq.length < 2) return; // 매칭 상대가 없으면 원래 이름 그대로 사용(병합 안 함)
+      const canon = uniq.find(n => /Roborock/i.test(n)) || uniq[0];
+      uniq.forEach(n => { ROBOT_ALIAS_CANON[n] = canon; });
+    });
+  })();
+  function canonicalProductName(name) {
+    return ROBOT_ALIAS_CANON[name] || name;
+  }
+  // "제품" 필터(products)는 canonicalProductName으로 병합된 대표 이름을 옵션값으로 가지므로, 원본 품목명
+  // 하나하나를 그 products 배열과 비교할 때도 대표 이름으로 변환해서 비교해야 매칭 상대(로보락 표기 쪽)도
+  // 함께 필터에 포함된다.
+  function productMatches(name, products) {
+    if (products.includes('전체')) return true;
+    if (products.includes(name)) return true;
+    const canon = ROBOT_ALIAS_CANON[name];
+    return !!canon && products.includes(canon);
   }
 
   const fmt = n => n.toLocaleString('ko-KR');
