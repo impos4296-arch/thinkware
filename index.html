@@ -853,8 +853,8 @@
         </div>
         <div class="explorer-col">
           <div class="low-stock-panel" id="low-stock-panel">
-            <h4 class="lsp-head">주요 재고 알림 — 로봇청소기 S10·S9·S8 + Stand 청소기</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고 및 리퍼제품 수량은 제외 · 위 브랜드·카테고리·시리즈·구분·창고 필터 조건 반영</p>
+            <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 로봇청소기는 S10·S9·S8(구분을 "ACC 포함"으로 두면 ACC 품목도 포함), Stand 청소기는 F25 제외 · 위 브랜드·카테고리·구분·창고 필터 조건 반영(시리즈 필터는 이 알림에는 적용되지 않습니다)</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1379,14 +1379,21 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const ubusSideOn = activeSources.includes('UBUS');
       const srcTag = w => w === 'TM 자체창고' ? 'TM' : w;
       const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
+      // 2026-08-26 갱신(9차): (a) 이 알림의 대상 범위는 시리즈 필터와 무관하게 "카테고리"로만 판단한다 — 사용자
+      // 지시대로 matchesTm/matchesPinned 호출 시 series 인자를 실제 선택값 대신 ['전체']로 고정해서 시리즈
+      // 드롭다운 선택이 이 패널을 좁히지 않게 한다(브랜드/카테고리/구분/창고 필터는 그대로 반영). (b) 로봇청소기의
+      // S10/S9/S8 한정은 kind='완제품'(정식 모델) 품목에만 적용하고, kind='ACC'(구분="ACC 포함"일 때만
+      // matchesTm을 통과) 품목은 series 값이 'ACC'라 S10/S9/S8과 무관하게 항상 대상에 포함한다 — "ACC 포함
+      // 선택 시 해당 제품의 ACC도 함께 보여달라"는 요청 반영. Stand 청소기는 기존대로 F25만 제외.
+      const isRobotTarget = it => it.major === '로봇청소기' && ((it.series === 'S10' || it.series === 'S9' || it.series === 'S8') || it.kind === 'ACC');
+      const isStandTarget = it => it.major === 'Stand 청소기' && it.series !== 'F25';
       const rows = [];
       const tmRobotCandidates = [];
       if (tmSideOn || plSideOn) {
         items.forEach((it, i) => {
-          // 2026-08-26 갱신(8차): Stand 청소기 중 F25 시리즈는 대상에서 제외(사용자 지시).
-          const isTarget = (it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8')) || (it.major === 'Stand 청소기' && it.series !== 'F25');
+          const isTarget = isRobotTarget(it) || isStandTarget(it);
           if (!isTarget) return;
-          if (!matchesTm(it, brand, category, series, kindMode)) return;
+          if (!matchesTm(it, brand, category, ['전체'], kindMode)) return;
           if (isGraded(it.name) || isRefurb(it.name)) return;
           const qty = (tmSideOn ? dayArr[i][0] : 0) + (plSideOn ? dayArr[i][1] : 0);
           if (it.major === '로봇청소기') {
@@ -1399,9 +1406,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const ubusCandidates = [];
       if (ubusSideOn) {
         PINNED.filter(u => u.source === 'UBUS').forEach(u => {
-          const isTarget = u.major === '로봇청소기' && (u.series === 'S10' || u.series === 'S9' || u.series === 'S8');
+          const isTarget = isRobotTarget(u);
           if (!isTarget) return;
-          if (!matchesPinned(u, brand, category, series, kindMode)) return;
+          if (!matchesPinned(u, brand, category, ['전체'], kindMode)) return;
           if (isGraded(u.name) || isRefurb(u.name)) return;
           ubusCandidates.push({ name: u.name, series: u.series, qty: u.cur });
         });
@@ -1412,12 +1419,24 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
         unmatchedTm.forEach(t => rows.push({ name: t.name, tag: tmSideTag, qty: t.qty }));
         unmatchedPartner.forEach(p => rows.push({ name: p.name, tag: 'UBUS', qty: p.qty }));
       }
-      rows.sort((a, b) => a.qty - b.qty);
+      // 2026-08-26 갱신(9차): 재고 0개 품목은 이 알림에서 의미가 없으므로("주요 재고 알림"은 소진 임박 재고를
+      // 보여주는 목적) 표시 대상에서 제외한다(사용자 지시).
+      const visibleRows = rows.filter(r => r.qty > 0);
+      visibleRows.sort((a, b) => a.qty - b.qty);
       // 2026-08-26 갱신(7차): 최하위 구간 기준을 200개 미만 → 300개 미만으로 변경(사용자 지시). 클래스명(t200
       // 등)은 내부 식별자로 그대로 유지하고, 실제 기준값과 화면 표기 문구만 변경한다.
-      const t200 = rows.filter(r => r.qty < 300);
-      const t500 = rows.filter(r => r.qty >= 300 && r.qty < 500);
-      const t1000 = rows.filter(r => r.qty >= 500 && r.qty < 1000);
+      const t200 = visibleRows.filter(r => r.qty < 300);
+      const t500 = visibleRows.filter(r => r.qty >= 300 && r.qty < 500);
+      const t1000 = visibleRows.filter(r => r.qty >= 500 && r.qty < 1000);
+      // 2026-08-26 갱신(9차): 패널 제목을 현재 선택된 카테고리 필터 기준으로 동적 표기(사용자 지시 예시: 로봇청소기만
+      // 선택 시 "주요 재고 알림 - 로봇청소기", 로봇청소기+Stand 청소기 선택(또는 카테고리="전체") 시
+      // "주요 재고 알림 - 로봇청소기, Stand 청소기"). 이 알림의 대상 카테고리는 로봇청소기/Stand 청소기 둘뿐이므로,
+      // 카테고리 필터가 "전체"이면 둘 다, 특정 카테고리만 선택돼 있으면 그 교집합만 나열한다.
+      const ALERT_CATEGORIES = ['로봇청소기', 'Stand 청소기'];
+      const alertScopeCats = category.includes('전체') ? ALERT_CATEGORIES : ALERT_CATEGORIES.filter(c => category.includes(c));
+      document.getElementById('lsp-head').textContent = alertScopeCats.length
+        ? `주요 재고 알림 - ${alertScopeCats.join(', ')}`
+        : '주요 재고 알림';
       const listHtml = rs => rs.length
         ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${r.name}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
         : `<div class="low-stock-empty">해당 구간에 속하는 품목이 없습니다.</div>`;
