@@ -1309,6 +1309,13 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     list.forEach(n => opt(elProduct, n, n));
     elProduct.disabled = list.length === 0;
     selectAll(elProduct);
+    // 2026-08-26 추가(17차, 사용자 지시): 창고·브랜드·카테고리·시리즈·구분이 바뀌어 후보 품목 자체가
+    // 달라졌는데도 "제품" 검색창에 남아있던 이전 검색어(예: "세정")가 그대로 재적용되면서 새로 나타난
+    // 품목(키트·AS 부품 등)이 화면에 전혀 안 보이는 문제 — 실제로는 <select>에 다 들어있지만 검색어와
+    // 이름이 안 맞아 msel 패널에서 display:none으로 숨겨진 상태였다. 후보 목록이 재계산될 때는 검색어를
+    // 함께 초기화해 새 필터 조건에 맞는 품목이 곧바로 전부 보이게 한다.
+    const productSearchEl = document.querySelector('.msel[data-msel="product"] .msel-search');
+    if (productSearchEl) productSearchEl.value = '';
     syncMsel('product');
   }
 
