@@ -35,6 +35,8 @@
     --low-500-wash: #fbe8d8;
     --low-200: #c23b3b;
     --low-200-wash: #fbe0e0;
+    --newprod: #8348c9;
+    --newprod-wash: #f1e9fb;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -65,6 +67,8 @@
       --low-500-wash: #3a2716;
       --low-200: #e2635f;
       --low-200-wash: #3a1f1f;
+      --newprod: #a875e0;
+      --newprod-wash: #2a1f3a;
     }
   }
   :root[data-theme="dark"] {
@@ -95,6 +99,8 @@
     --low-500-wash: #3a2716;
     --low-200: #e2635f;
     --low-200-wash: #3a1f1f;
+    --newprod: #a875e0;
+    --newprod-wash: #2a1f3a;
   }
 
   * { box-sizing: border-box; }
@@ -444,12 +450,18 @@
   .daily-inbound-head .dib-title { font-family: "Gothic A1", sans-serif; font-size: 13px; font-weight: 800; color: var(--accent-tm); display:flex; align-items:center; gap:6px; }
   .daily-inbound-head .dib-badge { font-size: 10.5px; font-weight: 800; color: #fff; background: var(--accent-tm); border-radius: 999px; padding: 1px 7px; }
   .daily-inbound-head .dib-count { font-size: 11.5px; color: var(--text-muted); }
+  .daily-inbound-total-row { display:flex; align-items:baseline; justify-content:space-between; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-strong); }
+  .daily-inbound-total-row .dib-total-label { font-size: 12px; color: var(--text-secondary); font-weight:700; }
+  .daily-inbound-total-row .dib-total-value { font-family: "Gothic A1", sans-serif; font-size: 21px; font-weight: 800; color: var(--accent-tm); font-variant-numeric: tabular-nums; }
   .daily-inbound-list { max-height: 160px; overflow-y: auto; }
   .daily-inbound-row { display:flex; justify-content:space-between; gap:10px; font-size:12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
   .daily-inbound-row:last-child { border-bottom: none; }
   .daily-inbound-row .dir-nm { color: var(--text-primary); }
   .daily-inbound-row .dir-tag { color: var(--text-muted); font-size:11px; margin-left:4px; }
   .daily-inbound-row .dir-val { font-weight:700; font-variant-numeric: tabular-nums; color: var(--accent-tm); white-space:nowrap; }
+  .daily-inbound-newtag { display:inline-block; font-size:10px; font-weight:800; color:#fff; background:var(--newprod); border-radius:999px; padding:1px 6px; margin-left:5px; vertical-align:middle; }
+  .daily-inbound-newbanner { margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--newprod-wash); border:1px solid var(--newprod); font-size:12px; color:var(--text-primary); line-height:1.55; }
+  .daily-inbound-newbanner b { color: var(--newprod); font-weight:800; }
   .daily-inbound-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
 
   .trend-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; background: var(--surface-2); }
@@ -934,7 +946,12 @@
               <span class="dib-title"><span class="dib-badge">NEW</span><span id="daily-inbound-title">신규 입고 품목</span></span>
               <span class="dib-count" id="daily-inbound-count"></span>
             </div>
+            <div class="daily-inbound-total-row" id="daily-inbound-total-row" style="display:none;">
+              <span class="dib-total-label" id="daily-inbound-total-label">오늘 총 입고 수량</span>
+              <span class="dib-total-value" id="daily-inbound-total"></span>
+            </div>
             <div class="daily-inbound-list" id="daily-inbound-list"></div>
+            <div class="daily-inbound-newbanner" id="daily-inbound-newbanner" style="display:none;"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
           <div class="chart-wrap" id="inbound-chart-wrap">
@@ -1960,28 +1977,44 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     // 실제로 늘었다면 그건 곧 입고가 있었다는 뜻이라는 논리. TM·3PL은 원본 파일에 그 날짜의 정확한 입고
     // 수량이 있으므로 그대로 사용한다. 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 계속 제외한다.
     // TM/3PL/UBUS/위니온 중 아무것도 선택돼 있지 않으면(창고=세탁기/수입창고만 선택) 박스를 숨긴다.
+    // 2026-08-27 갱신(21차, 사용자 지시): "개별 품목 나열보다 오늘 총 몇 대가 입고됐는지가 필요했다"는
+    // 피드백에 따라 박스 상단에 총 입고 수량(rows2 qty 합)을 큼직하게 표시한다. 또한 "기존에 없던 완전히
+    // 새로운 제품이 입고되면 그것도 별도로 알려달라"는 요청에 따라, TM/3PL은 이번 달 들어 해당 조회일자
+    // 이전까지 재고가 계속 0이었다가 이번에 처음 입고된 품목을, UBUS/위니온은 직전 갱신 시점 재고
+    // (prevCur)가 0이었던 품목을 "신규 제품"으로 판정해 목록에 배지로 표시하고, 하단에 별도 안내 문구로도
+    // 요약한다(조회일자가 이번 달 첫날이면 비교할 이전 데이터가 없어 신규 판정을 생략한다).
     (function renderDailyInbound() {
       const tmOn = activeSources.includes('TM 자체창고'), plOn = activeSources.includes('3PL');
       const ubusOn = activeSources.includes('UBUS'), weioneOn = activeSources.includes('위니온');
       const dailyBox = document.getElementById('daily-inbound-box');
       if (!tmOn && !plOn && !ubusOn && !weioneOn) { dailyBox.style.display = 'none'; return; }
       const dArr = dayInbound[date];
+      const dNum = Number(date);
+      const hasPriorBaseline = dNum !== dayKeys[0];
       const tmPlRows = (dArr && (tmOn || plOn)) ? idxs
         .filter(i => items[i].major !== '세탁건조기' && !isGraded(items[i].name))
         .map(i => {
           const tmIn = tmOn ? (dArr[i][0] || 0) : 0;
           const plIn = plOn ? (dArr[i][1] || 0) : 0;
-          return { name: items[i].name, tm: tmIn, pl: plIn, ubus: 0, weione: 0, qty: tmIn + plIn };
+          const isNew = hasPriorBaseline && dayKeys.every(d => {
+            if (d >= dNum) return true;
+            const rec = days[String(d)] && days[String(d)][i];
+            return !rec || ((rec[0] || 0) + (rec[1] || 0)) === 0;
+          });
+          return { name: items[i].name, tm: tmIn, pl: plIn, ubus: 0, weione: 0, qty: tmIn + plIn, isNew };
         })
         .filter(r => r.qty > 0) : [];
       const netDelta = u => u.cur - (u.prevCur ?? u.cur);
+      const wasZero = u => (u.prevCur ?? u.cur) === 0;
       const ubusRows = ubusOn ? pinnedMatched
         .filter(u => u.source === 'UBUS' && netDelta(u) > 0 && !isGraded(u.name))
-        .map(u => ({ name: u.name, tm: 0, pl: 0, ubus: netDelta(u), weione: 0, qty: netDelta(u) })) : [];
+        .map(u => ({ name: u.name, tm: 0, pl: 0, ubus: netDelta(u), weione: 0, qty: netDelta(u), isNew: wasZero(u) })) : [];
       const weioneRows = weioneOn ? pinnedMatched
         .filter(u => u.source === '위니온' && netDelta(u) > 0 && !isGraded(u.name))
-        .map(u => ({ name: u.name, tm: 0, pl: 0, ubus: 0, weione: netDelta(u), qty: netDelta(u) })) : [];
+        .map(u => ({ name: u.name, tm: 0, pl: 0, ubus: 0, weione: netDelta(u), qty: netDelta(u), isNew: wasZero(u) })) : [];
       const rows2 = tmPlRows.concat(ubusRows).concat(weioneRows).sort((a, b) => b.qty - a.qty);
+      const totalQty = rows2.reduce((s, r) => s + r.qty, 0);
+      const newRows = rows2.filter(r => r.isNew);
       dailyBox.style.display = '';
       const scopeParts = [];
       if (tmOn || plOn) scopeParts.push(`TM·3PL은 ${date}일 당일`);
@@ -1990,18 +2023,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       else if (weioneOn) scopeParts.push('위니온은 직전 갱신 대비 재고 증가분');
       document.getElementById('daily-inbound-title').textContent = `신규 입고 품목 (${scopeParts.join(', ')})`;
       document.getElementById('daily-inbound-count').textContent = `${rows2.length}개 품목`;
+      const totalRowEl = document.getElementById('daily-inbound-total-row');
       const dailyList = document.getElementById('daily-inbound-list');
+      const bannerEl = document.getElementById('daily-inbound-newbanner');
       if (!rows2.length) {
+        totalRowEl.style.display = 'none';
+        bannerEl.style.display = 'none';
+        bannerEl.innerHTML = '';
         dailyList.innerHTML = `<div class="daily-inbound-empty">선택한 조건에 새로 입고된 품목이 없습니다(세탁기·수입창고는 비교할 이전 재고 데이터가 없어 항상 제외됩니다).</div>`;
       } else {
+        totalRowEl.style.display = '';
+        document.getElementById('daily-inbound-total').textContent = `${fmt(totalQty)}개`;
         dailyList.innerHTML = rows2.map(r => {
           const tagParts = [];
           if (tmOn && r.tm > 0) tagParts.push(`TM+${fmt(r.tm)}`);
           if (plOn && r.pl > 0) tagParts.push(`3PL+${fmt(r.pl)}`);
           if (ubusOn && r.ubus > 0) tagParts.push(`UBUS+${fmt(r.ubus)}`);
           if (weioneOn && r.weione > 0) tagParts.push(`위니온+${fmt(r.weione)}`);
-          return `<div class="daily-inbound-row"><span class="dir-nm">${r.name}<span class="dir-tag">${tagParts.join(' · ')}</span></span><span class="dir-val">+${fmt(r.qty)}개</span></div>`;
+          const newBadge = r.isNew ? '<span class="daily-inbound-newtag">신규</span>' : '';
+          return `<div class="daily-inbound-row"><span class="dir-nm">${r.name}${newBadge}<span class="dir-tag">${tagParts.join(' · ')}</span></span><span class="dir-val">+${fmt(r.qty)}개</span></div>`;
         }).join('');
+        if (newRows.length) {
+          bannerEl.style.display = '';
+          const parts = newRows.map(r => `<b>${r.name}</b> +${fmt(r.qty)}개`).join(', ');
+          bannerEl.innerHTML = `🆕 기존 제품 입고 외에 <b>신규 제품 입고</b>도 있었습니다: ${parts}`;
+        } else {
+          bannerEl.style.display = 'none';
+          bannerEl.innerHTML = '';
+        }
       }
     })();
 
