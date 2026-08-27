@@ -941,7 +941,7 @@
             <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
           </div>
           <div class="legend-mini" id="inbound-legend"></div>
-          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 선택한 날짜에 새로 입고된 품목은 위 "NEW" 박스에서 따로 확인할 수 있습니다(TM·3PL만 해당, UBUS·위니온·세탁기·수입창고는 일자별 원본이 없어 제외).</p>
+          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 위 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 입고량, UBUS는 원본 파일 자체가 일자별이 아니라 이번 달 누적값만 제공되어 조회일자와 무관하게 항상 최근 갱신 기준으로 표시됩니다(위니온·세탁기·수입창고는 입고 데이터 자체가 없어 제외).</p>
           <h3 style="margin-top:20px;" id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/26, 전체 창고 합계)</h3>
           <div class="trend-wrap">
             <div class="trend-head">
@@ -1945,35 +1945,50 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
     }
 
     // 2026-08-27 추가(19차, 사용자 지시): "제품별 이번 달 입고 수량"(월 누계, 슬라이더 무관)과는 별도로,
-    // 조회일자 슬라이더가 가리키는 "그 날짜에 실제로 새로 입고된 품목"만 따로 분리해서 보여준다. TM 자체창고·
-    // 3PL만 대상(원본 TM 엑셀의 일자별 시트에만 그날의 TM매입/교환반품/3PL 입고 컬럼이 있음 — UBUS/위니온/
-    // 세탁기/수입창고는 여전히 일자별 원본이 없어 제외, 기존 "이번 달 누계" 패널 하단 안내문과 동일한 근거).
-    // TM/3PL 어느 쪽도 선택돼 있지 않으면(창고=UBUS/위니온/세탁기/수입창고만 선택) 이 박스는 아예 숨긴다.
+    // "입고가 있었으면 그걸 보여달라"는 요청에 따라 신규 입고 품목만 따로 분리해서 보여준다.
+    // 2026-08-27 갱신(20차, 사용자 지시): 처음엔 TM/3PL만 대상으로 했더니 "UBUS 원본 파일에 분명 입고가
+    // 있는데 왜 대시보드엔 없다고 나오냐"는 지적을 받음 — UBUS 원본 파일에도 "입고" 컬럼이 있고 이미
+    // ubus_snapshot.json에 u.inbound로 들어와 있었는데(아래쪽 "이번 달 입고 수량" 차트에서는 쓰고 있었음)
+    // 이 박스에서만 빠져 있었던 게 원인. UBUS도 포함하도록 수정한다. 단, TM/3PL은 원본 일자별 시트에서 그
+    // 날짜(조회일자)에 정확히 해당하는 입고량을 뽑은 것이고, UBUS는 원본 파일 자체가 일자별이 아니라
+    // "이번 달 누적" 값만 제공하므로 — 조회일자와 무관하게 최근 갱신된 값이 항상 그대로 표시된다. 두 그룹의
+    // 시점이 다르다는 걸 사용자가 헷갈리지 않도록 제목과 각 행의 태그에 그 범위를 명시한다(TM+n/3PL+n =
+    // 그 날짜 입고, UBUS+n(누적) = 이번 달 누적 입고). 위니온·세탁기·수입창고는 원본 파일 자체에 입고
+    // 컬럼이 없어(아래 "이번 달 입고 수량" 패널 하단 안내문과 동일 근거) 여전히 대상에서 제외한다.
+    // TM/3PL/UBUS 중 아무것도 선택돼 있지 않으면(창고=위니온/세탁기/수입창고만 선택) 박스를 숨긴다.
     (function renderDailyInbound() {
       const tmOn = activeSources.includes('TM 자체창고'), plOn = activeSources.includes('3PL');
+      const ubusOn = activeSources.includes('UBUS');
       const dailyBox = document.getElementById('daily-inbound-box');
-      if (!tmOn && !plOn) { dailyBox.style.display = 'none'; return; }
+      if (!tmOn && !plOn && !ubusOn) { dailyBox.style.display = 'none'; return; }
       const dArr = dayInbound[date];
-      const rows2 = (dArr ? idxs : [])
+      const tmPlRows = (dArr && (tmOn || plOn)) ? idxs
         .filter(i => items[i].major !== '세탁건조기' && !isGraded(items[i].name))
         .map(i => {
           const tmIn = tmOn ? (dArr[i][0] || 0) : 0;
           const plIn = plOn ? (dArr[i][1] || 0) : 0;
-          return { name: items[i].name, tm: tmIn, pl: plIn, qty: tmIn + plIn };
+          return { name: items[i].name, tm: tmIn, pl: plIn, ubus: 0, qty: tmIn + plIn };
         })
-        .filter(r => r.qty > 0)
-        .sort((a, b) => b.qty - a.qty);
+        .filter(r => r.qty > 0) : [];
+      const ubusRows = ubusOn ? pinnedMatched
+        .filter(u => u.source === 'UBUS' && (u.inbound || 0) > 0 && !isGraded(u.name))
+        .map(u => ({ name: u.name, tm: 0, pl: 0, ubus: u.inbound, qty: u.inbound })) : [];
+      const rows2 = tmPlRows.concat(ubusRows).sort((a, b) => b.qty - a.qty);
       dailyBox.style.display = '';
-      document.getElementById('daily-inbound-title').textContent = `8월 ${date}일 신규 입고 품목`;
+      const scopeParts = [];
+      if (tmOn || plOn) scopeParts.push(`TM·3PL은 ${date}일 당일`);
+      if (ubusOn) scopeParts.push('UBUS는 이번 달 누적');
+      document.getElementById('daily-inbound-title').textContent = `신규 입고 품목 (${scopeParts.join(', ')})`;
       document.getElementById('daily-inbound-count').textContent = `${rows2.length}개 품목`;
       const dailyList = document.getElementById('daily-inbound-list');
       if (!rows2.length) {
-        dailyList.innerHTML = `<div class="daily-inbound-empty">선택한 날짜(8월 ${date}일)에 새로 입고된 품목이 없습니다.</div>`;
+        dailyList.innerHTML = `<div class="daily-inbound-empty">선택한 조건에 새로 입고된 품목이 없습니다(위니온·세탁기·수입창고는 원본에 입고 데이터가 없어 항상 제외됩니다).</div>`;
       } else {
         dailyList.innerHTML = rows2.map(r => {
           const tagParts = [];
           if (tmOn && r.tm > 0) tagParts.push(`TM+${fmt(r.tm)}`);
           if (plOn && r.pl > 0) tagParts.push(`3PL+${fmt(r.pl)}`);
+          if (ubusOn && r.ubus > 0) tagParts.push(`UBUS+${fmt(r.ubus)}(누적)`);
           return `<div class="daily-inbound-row"><span class="dir-nm">${r.name}<span class="dir-tag">${tagParts.join(' · ')}</span></span><span class="dir-val">+${fmt(r.qty)}개</span></div>`;
         }).join('');
       }
