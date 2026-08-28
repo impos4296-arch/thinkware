@@ -301,6 +301,27 @@
   .msel-opt:hover { background: var(--surface-2); }
   .msel-opt input[type="checkbox"] { accent-color: var(--accent-3pl); width: 15px; height: 15px; flex: none; cursor: pointer; }
   .msel-opt.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+  /* 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): 참고 대시보드의 다중선택
+     드롭다운은 (1) 목록 맨 위에 "전체"/"해제" 버튼이 별도로 있고 (2) 각 항목 옆에 수량이 함께 표시돼
+     선택 전에도 항목별 비중을 바로 가늠할 수 있다. 우리 쪽도 같은 패턴으로 맞춘다 — "전체" 체크박스는
+     목록에서 빼고(의미는 그대로 select의 특수값으로 유지) 패널 상단 버튼으로 옮기고, 옵션 라벨 옆에
+     현재 필터 기준 수량(msel-count)을 붙인다. */
+  .msel-actions { display: flex; gap: 6px; padding: 0 2px 8px; margin-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .msel-action {
+    flex: 1;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .msel-action:hover { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .msel-opt span:not(.msel-count) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msel-count { flex: none; font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; margin-left: 6px; }
   /* 2026-08-26 추가: "제품" 필터는 품목 수가 많아 msel-panel 안에 검색창을 넣어 좁혀 찾을 수 있게 한다. */
   /* position: sticky — 옵션이 많아 .msel-panel(overflow-y:auto)이 스크롤돼도 검색창은 패널 상단에 고정. */
   .msel-search { position: sticky; top: 0; z-index: 2; width: 100%; box-sizing: border-box; margin-bottom: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; background: var(--surface-2); color: var(--text-primary); font-family: inherit; }
@@ -364,6 +385,26 @@
   }
   .kind-toggle button.active { background: var(--surface); color: var(--accent-3pl); box-shadow: 0 1px 0 var(--border-strong); }
 
+  /* 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): 참고 대시보드는 화면 최상단에
+     핵심 숫자 1~2개만 보여주고(기준합계·상점수) 표를 중심으로 화면을 구성한다. 우리 쪽은 창고별 세부
+     타일이 실무에 필요해 기본은 그대로 두되, "간략히 보기"를 누르면 세부 타일을 접고 "선택 조건 합계"
+     타일 하나만 남겨 필요할 때만 펼쳐볼 수 있게 한다. 차트 접기 버튼(.chart-toggle-btn)과 모양을
+     통일하기 위해 같은 .panel-toggle-btn 클래스를 함께 쓴다. */
+  .panel-toggle-btn {
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .panel-toggle-btn:hover { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .esum-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .esum-head .filter-scope-note { flex: 1; margin: 0; }
   .explorer-summary {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
@@ -372,6 +413,8 @@
   }
   @media (max-width: 1280px) { .explorer-summary { grid-template-columns: repeat(4, 1fr); } }
   @media (max-width: 640px) { .explorer-summary { grid-template-columns: repeat(2, 1fr); } }
+  .explorer-summary.condensed { grid-template-columns: minmax(160px, 240px); margin-bottom: 14px; }
+  .explorer-summary.condensed .esum-tile:not(.total) { display: none; }
   .esum-tile {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -493,29 +536,38 @@
      품목"만 따로 분리해서 보여주는 하이라이트 박스. 월 누계 그래프와 달리 조회일자 슬라이더에 실제로 반응한다
      (원본 TM 엑셀의 일자별 시트에 그날의 TM매입/교환반품/3PL 입고 컬럼이 있어 날짜별 델타 추출이 가능함을
      확인함 — UBUS/위니온/세탁기/수입창고는 여전히 일자별 원본이 없어 이 박스에는 포함하지 않는다). */
-  .daily-inbound-box { border: 1px solid var(--accent-tm); background: var(--accent-tm-wash); border-radius: 10px; padding: 10px 12px; margin: 22px 0 18px; }
+  /* 2026-08-28 갱신(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영 — "강조색 정리"): 이 박스는
+     "TM 자체창고"와 무관한 "신규 입고 품목" 강조 박스인데 기존에는 TM 자체창고 타일/막대와 같은 초록색
+     (--accent-tm)을 썼다 — 같은 초록이 "TM 자체창고"와 "신규 입고"라는 서로 다른 의미로 화면 여러 곳에
+     쓰이면서 색상이 무엇을 뜻하는지 헷갈릴 수 있었다. 이미 이 박스 안의 개별 품목 NEW 태그(daily-inbound-newtag)
+     /배너(daily-inbound-newbanner)에 쓰이던 "신규" 전용 색상(--newprod)으로 박스 전체를 통일해, 창고 색상과
+     완전히 분리하고 "신규"라는 의미도 더 일관되게 만든다. */
+  .daily-inbound-box { border: 1px solid var(--newprod); background: var(--newprod-wash); border-radius: 10px; padding: 10px 12px; margin: 22px 0 18px; }
   .daily-inbound-head { display:flex; align-items:center; justify-content:space-between; margin: 0 0 6px; }
-  .daily-inbound-head .dib-title { font-family: "Gothic A1", sans-serif; font-size: 13px; font-weight: 800; color: var(--accent-tm); display:flex; align-items:center; gap:6px; }
-  .daily-inbound-head .dib-badge { font-size: 10.5px; font-weight: 800; color: #fff; background: var(--accent-tm); border-radius: 999px; padding: 1px 7px; }
+  .daily-inbound-head .dib-title { font-family: "Gothic A1", sans-serif; font-size: 13px; font-weight: 800; color: var(--newprod); display:flex; align-items:center; gap:6px; }
+  .daily-inbound-head .dib-badge { font-size: 10.5px; font-weight: 800; color: #fff; background: var(--newprod); border-radius: 999px; padding: 1px 7px; }
   .daily-inbound-head .dib-count { font-size: 11.5px; color: var(--text-muted); }
   .daily-inbound-total-row { display:flex; align-items:baseline; justify-content:space-between; margin: 0 0 8px; padding-bottom: 8px; border-bottom: 1px dashed var(--border-strong); }
   .daily-inbound-total-row .dib-total-label { font-size: 12px; color: var(--text-secondary); font-weight:700; }
-  .daily-inbound-total-row .dib-total-value { font-family: "Gothic A1", sans-serif; font-size: 21px; font-weight: 800; color: var(--accent-tm); font-variant-numeric: tabular-nums; }
+  .daily-inbound-total-row .dib-total-value { font-family: "Gothic A1", sans-serif; font-size: 21px; font-weight: 800; color: var(--newprod); font-variant-numeric: tabular-nums; }
   .daily-inbound-list { max-height: 160px; overflow-y: auto; }
   .daily-inbound-row { display:flex; justify-content:space-between; gap:10px; font-size:12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
   .daily-inbound-row:last-child { border-bottom: none; }
   .daily-inbound-row .dir-nm { color: var(--text-primary); }
   .daily-inbound-row .dir-tag { color: var(--text-muted); font-size:11px; margin-left:4px; }
-  .daily-inbound-row .dir-val { font-weight:700; font-variant-numeric: tabular-nums; color: var(--accent-tm); white-space:nowrap; }
+  .daily-inbound-row .dir-val { font-weight:700; font-variant-numeric: tabular-nums; color: var(--newprod); white-space:nowrap; }
   .daily-inbound-newtag { display:inline-block; font-size:10px; font-weight:800; color:#fff; background:var(--newprod); border-radius:999px; padding:1px 6px; margin-left:5px; vertical-align:middle; }
   .daily-inbound-newbanner { margin-top:8px; padding:7px 9px; border-radius:8px; background:var(--newprod-wash); border:1px solid var(--newprod); font-size:12px; color:var(--text-primary); line-height:1.55; }
   .daily-inbound-newbanner b { color: var(--newprod); font-weight:800; }
   .daily-inbound-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
 
   .trend-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; background: var(--surface-2); }
-  .trend-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .trend-wrap.chart-collapsed { padding-bottom: 14px; }
+  .trend-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px; }
+  .trend-head-info { display:flex; align-items:baseline; gap:10px; }
   .trend-head .lbl { font-size:12px; color:var(--text-muted); }
   .trend-head .now { font-family:"Gothic A1",sans-serif; font-weight:800; font-size:16px; font-variant-numeric: tabular-nums; }
+  .trend-wrap.chart-collapsed .trend-svg { display: none; }
   svg.trend-svg { width:100%; height:120px; display:block; overflow: visible; }
   .trend-svg .grid-line { stroke: var(--border); stroke-width: 1; }
   .trend-svg .area-fill { fill: var(--accent-3pl); opacity: 0.12; }
@@ -760,14 +812,21 @@
   .inbound-sched-item-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap: 6px 10px; margin-bottom: 10px; }
   .inbound-sched-item-head .isi-name { font-size: 15px; font-weight: 800; color: var(--text-primary); }
   .isi-match-badge { font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
-  .isi-match-badge.confident { background: var(--accent-tm-wash); color: var(--accent-tm); }
+  /* 2026-08-28 갱신(32차, "강조색 정리"): "매칭 확실" 배지는 특정 창고와 무관한 시스템 판정 결과라
+     TM 자체창고 초록(--accent-tm) 대신, 버튼·탭 등 화면 전반의 조작/강조 요소에 이미 쓰이던 단일 강조색
+     (--accent-3pl)으로 통일한다. */
+  .isi-match-badge.confident { background: var(--accent-3pl-wash); color: var(--accent-3pl); }
   .isi-match-badge.none { background: var(--surface-2); color: var(--text-muted); }
 
   /* 현재 재고 → 입고예정 → 예상 재고 비교 막대 (재고현황 탭과 매칭된 품목만 표시) */
   .isi-stock-bar { display:flex; align-items:center; flex-wrap:wrap; gap: 6px 8px; font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; padding: 9px 11px; background: var(--surface-2); border-radius: 9px; }
   .isi-stock-bar b { font-variant-numeric: tabular-nums; }
   .isi-stock-bar .now b { color: var(--text-primary); font-weight: 800; }
-  .isi-stock-bar .plus b { color: var(--accent-tm); font-weight: 800; }
+  /* 2026-08-28 갱신(32차, "강조색 정리"): "입고예정" 수량은 이 대시보드 다른 곳(esum-tile.forecast,
+     막대그래프 seg-fc, 범례)에서 이미 보라색(--accent-forecast)으로 통일돼 있는데 이 한 줄만 TM 자체창고
+     초록(--accent-tm)을 쓰고 있어 같은 "입고예정" 개념이 위치마다 다른 색으로 보였다 — 기존 관례에 맞춰
+     보라색으로 통일한다. */
+  .isi-stock-bar .plus b { color: var(--accent-forecast); font-weight: 800; }
   .isi-stock-bar .arrow { color: var(--text-muted); }
   .isi-stock-bar .result b { color: var(--accent-3pl); font-weight: 800; font-size: 14.5px; }
   .isi-stock-bar .isi-doneall { color: var(--text-muted); font-weight: 600; }
@@ -1080,7 +1139,10 @@
         <span class="date-badge" id="date-badge">2026-08-26</span>
       </div>
 
-      <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
+      <div class="esum-head">
+        <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
+        <button type="button" class="panel-toggle-btn" id="esum-toggle-btn">간략히 보기</button>
+      </div>
       <div class="explorer-summary" id="esum"></div>
       <p class="ubus-pinned-note">UBUS·위니온·세탁기 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). 수입창고는 통관이 완료되어 국내 창고로 실입고될 예정인 재고이며, 마찬가지로 최신 스냅샷 값으로 고정 표시됩니다. <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
       <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
@@ -1131,10 +1193,10 @@
             <div class="daily-inbound-newbanner" id="daily-inbound-newbanner" style="display:none;"></div>
           </div>
           <h3 style="margin-top:20px;" id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/26, 전체 창고 합계)</h3>
-          <div class="trend-wrap">
+          <div class="trend-wrap" id="trend-wrap">
             <div class="trend-head">
-              <span class="lbl">선택한 조건의 일별 합계 추이</span>
-              <span class="now" id="trend-now">-</span>
+              <span class="trend-head-info"><span class="lbl">선택한 조건의 일별 합계 추이</span><span class="now" id="trend-now">-</span></span>
+              <button type="button" class="panel-toggle-btn chart-toggle-btn" id="trend-toggle-btn">그래프 감추기</button>
             </div>
             <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
           </div>
@@ -1359,6 +1421,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     const o = document.createElement('option');
     o.value = value; o.textContent = label;
     sel.appendChild(o);
+    return o;
   }
 
   // 다중 선택 유틸(2026-08-26 추가): 브랜드/카테고리/시리즈 select에 multiple 속성을 부여해 여러 값을
@@ -1425,7 +1488,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       const rest = opts.filter(o => !(o.selected && o.value !== '전체'));
       opts = selected.concat(rest);
     }
-    optsHost.innerHTML = opts.map(o => `<label class="msel-opt${o.disabled ? ' disabled' : ''}"><input type="checkbox" value="${o.value}"${o.selected ? ' checked' : ''}${o.disabled ? ' disabled' : ''}><span>${o.textContent}</span></label>`).join('');
+    // 2026-08-28 갱신(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): "전체"는 체크박스 목록에서 빼고
+    // 패널 상단 "전체 선택"/"전체 해제" 버튼으로 대체했다(아래 msel 초기화 블록 참고) — select의 값으로는
+    // 여전히 존재하므로 라벨/매칭 로직(vals, matchedOpt 등)은 그대로 opts(전체 포함)를 쓴다. 목록에는
+    // 개별 항목만 남기고, opt()에서 dataset.count로 붙여둔 현재 필터 기준 수량이 있으면 함께 보여준다.
+    const listOpts = opts.filter(o => o.value !== '전체');
+    optsHost.innerHTML = listOpts.map(o => {
+      const countHtml = o.dataset.count !== undefined ? `<span class="msel-count">${fmt(Number(o.dataset.count) || 0)}개</span>` : '';
+      return `<label class="msel-opt${o.disabled ? ' disabled' : ''}"><input type="checkbox" value="${o.value}"${o.selected ? ' checked' : ''}${o.disabled ? ' disabled' : ''}><span>${o.textContent}</span>${countHtml}</label>`;
+    }).join('');
     const searchEl = panel.querySelector('.msel-search');
     if (searchEl && searchEl.value.trim()) filterMselOptions(key, searchEl.value);
     const vals = getSelectedValues(sel);
@@ -1459,6 +1530,26 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
     const btn = wrap.querySelector('.msel-btn');
     const panel = wrap.querySelector('.msel-panel');
+    // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): 모든 msel 패널 상단에 "전체
+    // 선택"/"전체 해제" 버튼을 고정 배치한다(참고 대시보드의 "전체"/"해제" 버튼 패턴) — 옵션이 많은
+    // 목록에서도 맨 아래 "전체" 체크박스까지 찾지 않고 즉시 선택을 되돌릴 수 있다. 실제 상태 변경은
+    // 기존 select를 그대로 바꾸고 change 이벤트를 그대로 발생시켜, normalizeMultiSelect·
+    // applyWarehouseLock·render 등 기존 로직을 그대로 재사용한다.
+    const actionRow = document.createElement('div');
+    actionRow.className = 'msel-actions';
+    actionRow.innerHTML = '<button type="button" class="msel-action" data-act="all">전체 선택</button><button type="button" class="msel-action" data-act="none">전체 해제</button>';
+    actionRow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const act = e.target.closest('.msel-action');
+      if (!act) return;
+      if (act.dataset.act === 'all') {
+        selectValues(sel, ['전체']);
+      } else {
+        Array.from(sel.options).forEach(o => { o.selected = false; });
+      }
+      sel.dispatchEvent(new Event('change'));
+    });
+    panel.appendChild(actionRow);
     if (MSEL_SEARCHABLE[key]) {
       // 검색창은 최초 1회만 생성해 patch에서 살아남게 하고(옵션 목록만 담는 .msel-opts를 별도로 둠),
       // syncMsel은 .msel-opts의 내용만 다시 그린다 — 그래야 옵션이 바뀌어도 입력 중이던 검색어가 안 지워진다.
@@ -1469,10 +1560,13 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       search.addEventListener('click', e => e.stopPropagation());
       search.addEventListener('input', () => filterMselOptions(key, search.value));
       panel.appendChild(search);
-      const optsHost = document.createElement('div');
-      optsHost.className = 'msel-opts';
-      panel.appendChild(optsHost);
     }
+    // 2026-08-28 갱신(32차): 검색창이 없는(제품 외) 패널도 옵션 목록을 담는 .msel-opts를 항상 만들어둔다
+    // — syncMsel이 `panel.querySelector('.msel-opts') || panel`로 이 컨테이너만 다시 그리므로, 위에서
+    // appendChild한 .msel-actions/.msel-search는 매번 다시 그려지지 않고 그대로 유지된다.
+    const optsHost = document.createElement('div');
+    optsHost.className = 'msel-opts';
+    panel.appendChild(optsHost);
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (sel.disabled) return;
@@ -1502,7 +1596,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       if (ar !== br) return ar - br;
       return (brandTotals[b] || 0) - (brandTotals[a] || 0);
     });
-    ordered.forEach(b => opt(elBrand, b, b));
+    ordered.forEach(b => { const o = opt(elBrand, b, b); o.dataset.count = sumQtyFor([b], ['전체'], ['전체'], kindMode); });
     selectAll(elBrand);
     syncMsel('brand');
   }
@@ -1542,7 +1636,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
         });
       }
     }
-    majors.forEach(m => opt(elCategory, m, m));
+    majors.forEach(m => { const o = opt(elCategory, m, m); o.dataset.count = sumQtyFor(brands, [m], ['전체'], kindMode); });
     elCategory.disabled = majors.length <= 1;
     selectAll(elCategory);
     syncMsel('category');
@@ -1603,7 +1697,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       list = list.slice().sort((a, b) =>
         priorityRank(seriesBrand[a], seriesMajor[a], a) - priorityRank(seriesBrand[b], seriesMajor[b], b));
     }
-    list.forEach(s => opt(elSeries, s, s));
+    list.forEach(s => { const o = opt(elSeries, s, s); o.dataset.count = sumQtyFor(brands, categories, [s], kindMode); });
     elSeries.disabled = list.length === 0;
     selectAll(elSeries);
     syncMsel('series');
@@ -1637,7 +1731,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     elProduct.innerHTML = '';
     opt(elProduct, '전체', '전체');
     const list = Object.keys(nameQty).sort((a, b) => nameQty[b] - nameQty[a]);
-    list.forEach(n => opt(elProduct, n, dispName(n)));
+    list.forEach(n => { const o = opt(elProduct, n, dispName(n)); o.dataset.count = nameQty[n]; });
     elProduct.disabled = list.length === 0;
     selectAll(elProduct);
     // 2026-08-26 추가(17차, 사용자 지시): 창고·브랜드·카테고리·시리즈·구분이 바뀌어 후보 품목 자체가
@@ -1708,6 +1802,23 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     if (!seriesFieldMatches(u, seriesArr)) return false;
     if (!productMatches(u.name, products)) return false;
     return true;
+  }
+  // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): 브랜드/카테고리/시리즈 필터
+  // 드롭다운 옵션 옆에 표시할 개수 계산. fillProduct()가 "제품" 옵션 수량(nameQty)을 구할 때 쓰던 것과
+  // 동일한 기준(TM 최신일자 재고 tmSum+plSum, UBUS·위니온·세탁기 cur 합 — 수입창고·입고예정은 제외)으로
+  // 통일해, 필터마다 숫자의 의미가 달라지지 않게 한다.
+  function sumQtyFor(brands, categories, seriesArr, kind) {
+    let total = 0;
+    items.forEach((it, i) => {
+      if (!matchesTm(it, brands, categories, seriesArr, kind, ['전체'])) return;
+      const latest = days[String(maxDay)][i];
+      total += latest[0] + latest[1];
+    });
+    PINNED.forEach(u => {
+      if (!matchesPinned(u, brands, categories, seriesArr, kind, ['전체'])) return;
+      total += (u.cur || 0);
+    });
+    return total;
   }
   // B급/특가(_S) 재고 판별 — 품목명이 "_B급", "_B" 또는 "_S"로 끝나는 품목(2026-08-26 추가·갱신).
   // 주요 재고 알림 패널과 "이번 달 입고 수량" 패널에서는 정상 등급 재고만 의미가 있어 제외한다.
@@ -2020,6 +2131,13 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
+    // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): "창고" 필터 패널에도 다른
+    // 필터처럼 옵션별 개수를 보여준다 — 위에서 이미 계산된 sumByWarehouse(현재 브랜드/카테고리/시리즈/
+    // 구분 필터 기준, 창고 선택 자체와는 무관한 값)를 그대로 재사용하므로 별도 재계산이 필요 없다.
+    // syncMsel('warehouse')를 매 render()마다 다시 불러 패널이 열려 있는 동안에도 다른 필터를 바꾸면
+    // 개수가 항상 최신으로 갱신되게 한다(패널이 열려있어도 innerHTML만 갱신되고 열림 상태는 유지됨).
+    Array.from(elWarehouse.options).forEach(o => { if (o.value !== '전체') o.dataset.count = sumByWarehouse[o.value] || 0; });
+    syncMsel('warehouse');
 
     // 주요 재고 알림 패널(구 "저재고 경보"/"재고 부족 알림", 2026-08-26 추가·갱신): 로봇청소기 S10/S9/S8 시리즈 +
     // Stand 청소기 카테고리를 대상 범위로 하되, 그 범위를 현재 선택된 브랜드/카테고리/시리즈/구분 필터와
@@ -2702,6 +2820,32 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       p.classList.toggle('active', p.id === btn.dataset.panel);
     });
   });
+
+  // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영) — "차트 접기/펼치기", "상단 요약
+  // 영역 축소" 두 토글. 참고 대시보드는 표를 중심에 두고 그래프·요약 타일을 필요할 때만 펼쳐 보게 해
+  // 화면을 더 빽빽하지 않게 유지한다. 여기서도 같은 방식으로 두 영역을 선택적으로 접을 수 있게 하고,
+  // 선택 상태는 localStorage에 저장해 새로고침 후에도 유지한다(비밀번호 확인 후 sessionStorage에 캐시된
+  // 데이터를 그대로 쓰는 기존 방식과 마찬가지로 이 브라우저에서만 유지되는 화면 설정일 뿐, 원본 데이터와는
+  // 무관하다).
+  const trendWrap = document.getElementById('trend-wrap');
+  const trendToggleBtn = document.getElementById('trend-toggle-btn');
+  function setTrendCollapsed(collapsed) {
+    trendWrap.classList.toggle('chart-collapsed', collapsed);
+    trendToggleBtn.textContent = collapsed ? '그래프 보기' : '그래프 감추기';
+    try { localStorage.setItem('tw_trend_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+  }
+  trendToggleBtn.addEventListener('click', () => setTrendCollapsed(!trendWrap.classList.contains('chart-collapsed')));
+  try { setTrendCollapsed(localStorage.getItem('tw_trend_collapsed') === '1'); } catch (e) {}
+
+  const esumEl = document.getElementById('esum');
+  const esumToggleBtn = document.getElementById('esum-toggle-btn');
+  function setEsumCondensed(condensed) {
+    esumEl.classList.toggle('condensed', condensed);
+    esumToggleBtn.textContent = condensed ? '전체 보기' : '간략히 보기';
+    try { localStorage.setItem('tw_esum_condensed', condensed ? '1' : '0'); } catch (e) {}
+  }
+  esumToggleBtn.addEventListener('click', () => setEsumCondensed(!esumEl.classList.contains('condensed')));
+  try { setEsumCondensed(localStorage.getItem('tw_esum_condensed') === '1'); } catch (e) {}
   // 2026-08-28 갱신(28차, 사용자 지시): "입고예정" 탭 대개편.
   //  - "총 8월에는 몇 개, 9월에는 몇 개"처럼 제품별 월별 입고예정 합계를 한눈에 보여준다.
   //  - "검정=확정 일정 중 오늘 이전 날짜는 이미 현재 재고에 반영된 것으로 보고 제외"(boot() 상단 SCHED_ITEMS
