@@ -1366,17 +1366,21 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
   // 애매해지므로, 선택이 바뀔 때마다 "전체"와 구체적인 값이 함께 선택된 상태이면 "전체"를 자동으로 해제하고
   // (사용자가 무언가를 구체적으로 고른 것으로 해석), 반대로 전부 해제되어 아무것도 선택되지 않으면 다시
   // "전체"로 되돌린다(빈 선택은 곧 "필터 없음"과 같은 의미이므로).
+  // 2026-08-28 갱신(31차-6, 사용자 지시): "전체를 클릭하면 전체로, 전체를 다시 해제하면 전체해제 되는
+  // 기능"(사용자 제안) — 예전에는 체크된 항목이 0개가 되는 순간 normalizeMultiSelect가 곧바로 "전체"를
+  // 다시 체크해버려서, "전체" 체크박스를 눌러 해제하는 순간 즉시 원상복구되어 필터를 완전히 비울 방법이
+  // 없었다("필터를 전체 해제할 때 불편해서"). 이제 0개 선택 상태를 실제 상태로 인정해 그대로 유지한다 —
+  // "전체" 체크박스 자체가 켜면 전체선택/끄면 전체해제 토글로 동작하고(아래 toggleMselOption), getSelectedValues도
+  // 더 이상 빈 배열을 "전체"로 되돌리지 않는다(0개 선택 = 실제로 아무 것도 매칭하지 않음 → 그 필터에 한해
+  // 목록이 비어 보이는 것이 의도된 동작).
   function getSelectedValues(sel) {
-    const vals = Array.from(sel.selectedOptions).map(o => o.value);
-    return vals.length ? vals : ['전체'];
+    return Array.from(sel.selectedOptions).map(o => o.value);
   }
   function normalizeMultiSelect(sel) {
     const opts = Array.from(sel.options);
     const vals = opts.filter(o => o.selected).map(o => o.value);
     if (vals.length > 1 && vals.includes('전체')) {
       opts.forEach(o => { if (o.value === '전체') o.selected = false; });
-    } else if (vals.length === 0) {
-      opts.forEach(o => { o.selected = (o.value === '전체'); });
     }
   }
   function selectValues(sel, values) {
@@ -1433,7 +1437,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       const matchedOpt = opts.find(o => o.value === vals[0]);
       if (matchedOpt) singleLabel = matchedOpt.textContent;
     }
-    labelEl.textContent = vals.includes('전체') ? '전체' : (vals.length === 1 ? singleLabel : `${vals.length}개 선택`);
+    // 2026-08-28 갱신(31차-6): 0개 선택(전체 해제) 상태도 버튼 라벨에 분명히 드러나도록 "선택 없음"으로 표시.
+    labelEl.textContent = vals.includes('전체') ? '전체' : (vals.length === 0 ? '선택 없음' : (vals.length === 1 ? singleLabel : `${vals.length}개 선택`));
     btn.disabled = sel.disabled;
     btn.classList.toggle('is-disabled', sel.disabled);
   }
