@@ -953,13 +953,10 @@
             <div class="item-bars" id="acc-item-bars"></div>
             <div class="legend-mini" id="acc-item-legend"></div>
           </div>
-        </div>
-        <div class="explorer-col">
-          <div class="low-stock-panel" id="low-stock-panel">
-            <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 이 알림은 "구분"(본품만/ACC 포함) 설정과 무관하게 항상 본품(완제품) 기준으로만 집계됩니다 · 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·창고 필터 조건 반영(시리즈·제품·구분 필터는 이 알림에는 적용되지 않습니다)</p>
-            <div class="low-stock-tiers" id="low-stock-tiers"></div>
-          </div>
+          <!-- 2026-08-27 갱신(23차, 사용자 지시): "신규 입고품목"(daily-inbound-box)과 "선택구간
+               재고추이"(trend-head-title/trend-wrap)를 오른쪽 칸에서 이 왼쪽 칸의 [본품] 품목별
+               잔여재고 목록 바로 아래로 옮겼다 — 두 블록 다 id로만 참조되므로 JS 로직 변경 없이
+               HTML 위치만 이동하면 된다. -->
           <div class="daily-inbound-box" id="daily-inbound-box" style="display:none;">
             <div class="daily-inbound-head">
               <span class="dib-title"><span class="dib-badge">NEW</span><span id="daily-inbound-title">신규 입고 품목</span></span>
@@ -972,12 +969,6 @@
             <div class="daily-inbound-list" id="daily-inbound-list"></div>
             <div class="daily-inbound-newbanner" id="daily-inbound-newbanner" style="display:none;"></div>
           </div>
-          <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
-          <div class="chart-wrap" id="inbound-chart-wrap">
-            <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
-          </div>
-          <div class="legend-mini" id="inbound-legend"></div>
-          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 위 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
           <h3 style="margin-top:20px;" id="trend-head-title">선택 구간 재고 추이 (8/1 – 8/26, 전체 창고 합계)</h3>
           <div class="trend-wrap">
             <div class="trend-head">
@@ -986,6 +977,19 @@
             </div>
             <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
           </div>
+        </div>
+        <div class="explorer-col">
+          <div class="low-stock-panel" id="low-stock-panel">
+            <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
+            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 이 알림은 "구분"(본품만/ACC 포함) 설정과 무관하게 항상 본품(완제품) 기준으로만 집계됩니다 · 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·창고 필터 조건 반영(시리즈·제품·구분 필터는 이 알림에는 적용되지 않습니다)</p>
+            <div class="low-stock-tiers" id="low-stock-tiers"></div>
+          </div>
+          <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
+          <div class="chart-wrap" id="inbound-chart-wrap">
+            <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
+          </div>
+          <div class="legend-mini" id="inbound-legend"></div>
+          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
         </div>
       </div>
     </div>
@@ -2035,12 +2039,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA) {
       const totalQty = rows2.reduce((s, r) => s + r.qty, 0);
       const newRows = rows2.filter(r => r.isNew);
       dailyBox.style.display = '';
-      const scopeParts = [];
-      if (tmOn || plOn) scopeParts.push(`TM·3PL은 ${date}일 당일`);
-      if (ubusOn && weioneOn) scopeParts.push('UBUS·위니온은 직전 갱신 대비 재고 증가분');
-      else if (ubusOn) scopeParts.push('UBUS는 직전 갱신 대비 재고 증가분');
-      else if (weioneOn) scopeParts.push('위니온은 직전 갱신 대비 재고 증가분');
-      document.getElementById('daily-inbound-title').textContent = `신규 입고 품목 (${scopeParts.join(', ')})`;
+      // 2026-08-27 갱신(24차, 사용자 지시): 제목 옆에 "TM·3PL은 26일 당일, UBUS·위니온은 직전 갱신
+      // 대비 재고 증가분"처럼 창고별 산정 기준을 풀어 쓰던 문구가 길고 번잡하다는 피드백에 따라
+      // "(조회일 기준 창고별 수량)"으로 간단히 축약했다. 산정 기준 자체는 그대로이며(TM·3PL=그 날짜
+      // 정확한 입고량, UBUS·위니온=직전 갱신 대비 재고 증가분), 자세한 설명은 아래 "이번 달 누계 입고"
+      // 패널의 안내문에 남겨둔다.
+      document.getElementById('daily-inbound-title').textContent = '신규 입고 품목 (조회일 기준 창고별 수량)';
       document.getElementById('daily-inbound-count').textContent = `${rows2.length}개 품목`;
       const totalRowEl = document.getElementById('daily-inbound-total-row');
       const dailyList = document.getElementById('daily-inbound-list');
