@@ -384,6 +384,11 @@
      점선 테두리 + 옅은 배경으로 다른 창고 타일과 시각적으로 구분한다(실재고와 혼동 방지). */
   .esum-tile.forecast { background: var(--surface); border-style: dashed; border-color: var(--border-strong); }
   .esum-tile.forecast .esum-value { color: var(--accent-tm); }
+  /* 2026-08-28 추가(31차-5, 사용자 지시): "수입창고도 색상없음으로"(상단 esum 타일 스타일) — 수입창고는
+     통관은 완료됐지만 아직 창고에 실입고되지 않은 재고라 입고예정과 같은 "참고용" 성격을 가지므로, 값 색상은
+     그대로 두고(수치 자체는 확정치) 타일 테두리만 입고예정 타일과 같은 점선/옅은 배경으로 맞춰 최초 화면
+     기본값에서 제외된 상태와 시각적으로도 구분되게 한다.  */
+  .esum-tile.muted { background: var(--surface); border-style: dashed; border-color: var(--border-strong); }
   .esum-name { font-size: 11.5px; color: var(--text-muted); margin: 0 0 5px; display:flex; align-items:center; gap:5px;}
   .esum-value { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 20px; font-variant-numeric: tabular-nums; }
   .esum-value .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 2px; }
@@ -1031,7 +1036,7 @@
             <option value="UBUS" selected>UBUS</option>
             <option value="위니온" selected>위니온</option>
             <option value="세탁기" selected>세탁기</option>
-            <option value="수입창고" selected>수입창고</option>
+            <option value="수입창고">수입창고</option>
             <option value="입고예정">입고예정(당월·예상)</option>
           </select>
         </div>
@@ -1077,7 +1082,7 @@
 
       <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
       <div class="explorer-summary" id="esum"></div>
-      <p class="ubus-pinned-note">UBUS·위니온·세탁기·수입창고 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
+      <p class="ubus-pinned-note">UBUS·위니온·세탁기 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). 수입창고는 통관이 완료되어 국내 창고로 실입고될 예정인 재고이며, 마찬가지로 최신 스냅샷 값으로 고정 표시됩니다. <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
       <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
            실제 보유 재고가 아닌 입고예정 탭 기준 예상 수치이므로 점선 테두리로 구분 표시된다.
            29차 갱신: "입고예정 수량은 입고시기가 당월에 해당되는 수량만 보여줘"(사용자 지시) — 입고예정
@@ -1202,6 +1207,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
   //     "오늘"은 배포 시점에 고정하지 않고 매번 실제 조회 시점의 날짜를 사용해 자동으로 갱신되게 한다.
   function isQuantityOnlyName(name) {
     return /^[\d,]+\s*(EA|ea|개)$/.test(String(name || '').trim());
+  }
+  // 2026-08-28 추가(31차-4, 사용자 지시): 화면에 품목명을 표기할 때 "직배수 버전"→"직배수", "일반 버전"→
+  // "일반"으로 통일해 보여준다(원본 데이터 값·매칭 키는 그대로 두고 표시 문자열만 다듬는다 — 공백 유무가
+  // 섞여 있는 "일반버전"/"직배수버전" 표기도 같이 정리한다).
+  function dispName(name) {
+    return String(name || '').replace(/직배수\s*버전/g, '직배수').replace(/일반\s*버전/g, '일반');
   }
   const NOW = new Date();
   const TODAY_UTC = Date.UTC(NOW.getFullYear(), NOW.getMonth(), NOW.getDate());
@@ -1414,7 +1425,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     const searchEl = panel.querySelector('.msel-search');
     if (searchEl && searchEl.value.trim()) filterMselOptions(key, searchEl.value);
     const vals = getSelectedValues(sel);
-    labelEl.textContent = vals.includes('전체') ? '전체' : (vals.length === 1 ? vals[0] : `${vals.length}개 선택`);
+    // 2026-08-28 갱신(31차-4): 제품 옵션은 실제 value(필터링용 원본 품목명)와 표시 label(dispName으로
+    // "직배수 버전"→"직배수" 등 정리된 문구)이 달라질 수 있으므로, 단일 선택 시 버튼 라벨도 value가 아니라
+    // 해당 <option>의 표시 텍스트(textContent)를 사용해 드롭다운 목록과 동일하게 보이도록 한다.
+    let singleLabel = vals.length === 1 ? vals[0] : null;
+    if (singleLabel != null) {
+      const matchedOpt = opts.find(o => o.value === vals[0]);
+      if (matchedOpt) singleLabel = matchedOpt.textContent;
+    }
+    labelEl.textContent = vals.includes('전체') ? '전체' : (vals.length === 1 ? singleLabel : `${vals.length}개 선택`);
     btn.disabled = sel.disabled;
     btn.classList.toggle('is-disabled', sel.disabled);
   }
@@ -1613,7 +1632,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     elProduct.innerHTML = '';
     opt(elProduct, '전체', '전체');
     const list = Object.keys(nameQty).sort((a, b) => nameQty[b] - nameQty[a]);
-    list.forEach(n => opt(elProduct, n, n));
+    list.forEach(n => opt(elProduct, n, dispName(n)));
     elProduct.disabled = list.length === 0;
     selectAll(elProduct);
     // 2026-08-26 추가(17차, 사용자 지시): 창고·브랜드·카테고리·시리즈·구분이 바뀌어 후보 품목 자체가
@@ -1923,11 +1942,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     const warehouses = getSelectedValues(elWarehouse);
     const isFullAll = warehouses.includes('전체');
     // 2026-08-28 갱신(31차, 사용자 지시): "전체"를 문자 그대로의 전체(입고예정 포함 7개)로 재정의한다 —
-    // REAL_SOURCES는 예전 ALL_SOURCES(실창고 6개, 입고예정 제외)이고 ALL_SOURCES는 여기에 입고예정을 더한
-    // 7개. 최초 화면은 "전체" 대신 REAL_SOURCES 6개가 개별 선택된 상태로 시작하므로(위 #f-warehouse 기본
-    // 선택값 참고), isDefaultReal로 그 상태를 감지해 isFullAll이었을 때와 동일하게(타일 강조 없음, "전체
-    // 창고" 라벨) 보이게 한다. 실제 "전체"를 다시 선택했을 때만(isFullAll) 입고예정 수량이 합계·품목별
-    // 목록에 더해진다.
+    // REAL_SOURCES는 실창고 6개(입고예정 제외)이고 ALL_SOURCES는 여기에 입고예정을 더한 7개. isDefaultReal은
+    // REAL_SOURCES 6개가 전부 개별 선택된 상태를 감지해 isFullAll이었을 때와 동일하게(타일 강조 없음, "전체
+    // 창고" 라벨) 보이게 하는 하위 호환용 플래그다. 실제 "전체"를 선택했을 때만(isFullAll) 입고예정 수량이
+    // 합계·품목별 목록에 더해진다.
+    // 2026-08-28 갱신(31차-5, 사용자 지시): 최초 화면 기본 선택값이 "수입창고·입고예정(당월) 둘 다 체크
+    // 해제"로 바뀌면서(위 #f-warehouse 기본 selected 속성 참고, 5개만 선택) 더 이상 REAL_SOURCES 6개와
+    // 일치하지 않아 isDefaultReal은 최초 화면에서는 항상 false다(사용자가 수동으로 6개 실창고를 모두 개별
+    // 체크하는 경우에만 여전히 "전체 창고"처럼 보이는 하위 호환 동작 유지). 최초 화면은 이제 있는 그대로
+    // "5개 선택" 상태로 표시된다(수입창고·입고예정 타일은 강조 없이, 나머지 5개 타일만 강조).
     const REAL_SOURCES = TM_SIDE.concat(PARTNER_SIDE);
     const ALL_SOURCES = REAL_SOURCES.concat(['입고예정']);
     const activeSources = isFullAll ? ALL_SOURCES : warehouses;
@@ -1988,7 +2011,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
@@ -2083,7 +2106,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
         ? `주요 재고 알림 - ${alertScopeCats.join(', ')}`
         : '주요 재고 알림';
       const listHtml = rs => rs.length
-        ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${r.name}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
+        ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${dispName(r.name)}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
         : `<div class="low-stock-empty">해당 구간에 속하는 품목이 없습니다.</div>`;
       // 2026-08-26 갱신(6차): 타이어 표시 순서를 200개 미만 → 500개 미만 → 1000개 미만 순으로 변경(재고가
       // 가장 적어 시급한 구간이 먼저 보이도록).
@@ -2139,7 +2162,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
           return rows.map(r => {
             const w = Math.max(2, Math.round(r.cur/max*100));
             return `<div class="item-bar-row">
-              <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.cur)}개</span></div>
+              <div class="top"><span class="nm">${dispName(r.name)}</span><span class="val">${fmt(r.cur)}개</span></div>
               <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="${escXml(singleWarehouse)}" data-qty="${r.cur}"></div></div>
             </div>`;
           }).join('');
@@ -2161,7 +2184,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
           return rows.map(r => {
             const w = Math.max(2, Math.round(r.val/max*100));
             return `<div class="item-bar-row">
-              <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
+              <div class="top"><span class="nm">${dispName(r.name)}</span><span class="val">${fmt(r.val)}개</span></div>
               <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="${escXml(singleWarehouse)}" data-qty="${r.val}"></div></div>
             </div>`;
           }).join('');
@@ -2185,7 +2208,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
           return rows.map(r => {
             const w = Math.max(2, Math.round(r.val/max*100));
             return `<div class="item-bar-row">
-              <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
+              <div class="top"><span class="nm">${dispName(r.name)}</span><span class="val">${fmt(r.val)}개</span></div>
               <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="입고예정" data-qty="${r.val}"></div></div>
             </div>`;
           }).join('');
@@ -2231,13 +2254,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
         const partnerRows = partnerOtherAll.concat(robotMatch.unmatchedPartner, washerMatch.unmatchedPartner);
         const pool = tmRows.concat(partnerRows);
         const rows = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, limit);
-        // 2026-08-28 추가(31차-3, 사용자 지시): "입고예정 수량은 막대그래프상 가장 오른쪽으로" — 위 mergeRow에서
-        // TM 쪽 segs(tm/pl/imp/fc)와 파트너 쪽 seg(ub/we/wa)를 단순 concat하면 fc가 파트너 세그먼트보다
-        // 앞에(중간에) 그려질 수 있으므로, 최종 표시 직전에 seg-fc만 뽑아 각 행의 segs 맨 뒤로 옮겨 항상
-        // 막대 오른쪽 끝에 그려지도록 한다.
+        // 2026-08-28 추가(31차-3, 갱신 31차-5, 사용자 지시): "입고예정이 막대그래프 제일 오른쪽, 그다음이
+        // 수입창고" — 위 mergeRow에서 TM 쪽 segs(tm/pl/imp/fc)와 파트너 쪽 seg(ub/we/wa)를 단순 concat하면
+        // imp·fc가 파트너 세그먼트보다 앞에(중간에) 그려질 수 있으므로, 최종 표시 직전에 seg-imp·seg-fc만
+        // 뽑아 각 행의 segs 맨 뒤로(수입창고 다음 입고예정 순으로) 옮겨 항상 막대 오른쪽 끝에 그려지도록 한다.
         rows.forEach(r => {
+          const impSegs = r.segs.filter(s => s.cls === 'seg-imp');
           const fcSegs = r.segs.filter(s => s.cls === 'seg-fc');
-          if (fcSegs.length) r.segs = r.segs.filter(s => s.cls !== 'seg-fc').concat(fcSegs);
+          if (impSegs.length || fcSegs.length) {
+            r.segs = r.segs.filter(s => s.cls !== 'seg-imp' && s.cls !== 'seg-fc').concat(impSegs, fcSegs);
+          }
         });
         const presentSources = activeSources.filter(w => (sumByWarehouse[w] || 0) > 0);
         // 2026-08-28 갱신(31차): "전체"(입고예정 포함 7개)뿐 아니라, 최초 화면의 기본 선택 상태(입고예정 제외
@@ -2248,7 +2274,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
           ? (presentSources.length === fullSourceCount || presentSources.length === 0 ? '전체 창고' : presentSources.join('+'))
           : activeSources.join('+');
         headSuffix = `(${scopeLabel}) · ${pool.length}개 품목 중 상위 ${rows.length}`;
-        const legendSources = looksFullAll && presentSources.length ? presentSources : activeSources;
+        let legendSources = looksFullAll && presentSources.length ? presentSources : activeSources;
+        // 2026-08-28 갱신(31차-5, 사용자 지시): 범례(주석) 표시 순서도 막대그래프 구간 순서와 맞춰 수입창고 →
+        // 입고예정 순으로 맨 뒤에 오도록 재배열한다.
+        legendSources = legendSources.filter(w => w !== '수입창고' && w !== '입고예정')
+          .concat(legendSources.includes('수입창고') ? ['수입창고'] : [])
+          .concat(legendSources.includes('입고예정') ? ['입고예정'] : []);
         legendHtml = legendSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.qty));
@@ -2256,7 +2287,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
             const w = Math.max(2, Math.round(r.qty/max*100));
             const segsHtml = r.segs.filter(s => s.val > 0).map(s => `<div class="${s.cls}" style="width:${(s.val/r.qty*100)}%" data-wh="${escXml(SEG_LABEL[s.cls] || s.cls)}" data-qty="${s.val}"></div>`).join('');
             return `<div class="item-bar-row">
-              <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.qty)}개</span></div>
+              <div class="top"><span class="nm">${dispName(r.name)}</span><span class="val">${fmt(r.qty)}개</span></div>
               <div class="stack-track" style="width:${w}%">${segsHtml}</div>
             </div>`;
           }).join('');
@@ -2361,11 +2392,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
           if (ubusOn && r.ubus > 0) tagParts.push(`UBUS+${fmt(r.ubus)}`);
           if (weioneOn && r.weione > 0) tagParts.push(`위니온+${fmt(r.weione)}`);
           const newBadge = r.isNew ? '<span class="daily-inbound-newtag">신규</span>' : '';
-          return `<div class="daily-inbound-row"><span class="dir-nm">${r.name}${newBadge}<span class="dir-tag">${tagParts.join(' · ')}</span></span><span class="dir-val">+${fmt(r.qty)}개</span></div>`;
+          return `<div class="daily-inbound-row"><span class="dir-nm">${dispName(r.name)}${newBadge}<span class="dir-tag">${tagParts.join(' · ')}</span></span><span class="dir-val">+${fmt(r.qty)}개</span></div>`;
         }).join('');
         if (newRows.length) {
           bannerEl.style.display = '';
-          const parts = newRows.map(r => `<b>${r.name}</b> +${fmt(r.qty)}개`).join(', ');
+          const parts = newRows.map(r => `<b>${dispName(r.name)}</b> +${fmt(r.qty)}개`).join(', ');
           bannerEl.innerHTML = `🆕 기존 제품 입고 외에 <b>신규 제품 입고</b>도 있었습니다: ${parts}`;
         } else {
           bannerEl.style.display = 'none';
@@ -2772,7 +2803,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     const remarkRows = [];
     splitResults.forEach(({ it, pendingSorted }) => {
       pendingSorted.forEach(b => {
-        if (b.remark) remarkRows.push(`<li>${it.name} · ${fmt(b.shipQty)}개 — 비고: ${b.remark}</li>`);
+        if (b.remark) remarkRows.push(`<li>${dispName(it.name)} · ${fmt(b.shipQty)}개 — 비고: ${b.remark}</li>`);
       });
     });
 
@@ -2880,7 +2911,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       return `
       <div class="inbound-sched-item">
         <div class="inbound-sched-item-head">
-          <span class="isi-name">${it.name}</span>
+          <span class="isi-name">${dispName(it.name)}</span>
           ${badge}
         </div>
         ${stockHtml}
