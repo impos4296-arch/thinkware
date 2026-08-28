@@ -43,6 +43,7 @@
     --accent-weione: #eda100;
     --accent-washer: #e87ba4;
     --accent-import: #9a9689;
+    --accent-forecast: #7c5cff;
     --accent-3pl-wash: #e8f0fb;
     --accent-ubus-wash: #fdece3;
     --accent-tm-wash: #e5f6ee;
@@ -75,6 +76,7 @@
       --accent-weione: #c98500;
       --accent-washer: #d55181;
       --accent-import: #938f81;
+      --accent-forecast: #9b85ff;
       --accent-3pl-wash: #16233a;
       --accent-ubus-wash: #33211a;
       --accent-tm-wash: #16281f;
@@ -107,6 +109,7 @@
     --accent-weione: #c98500;
     --accent-washer: #d55181;
     --accent-import: #938f81;
+    --accent-forecast: #9b85ff;
     --accent-3pl-wash: #16233a;
     --accent-ubus-wash: #33211a;
     --accent-tm-wash: #16281f;
@@ -412,6 +415,7 @@
   .stack-track .seg-we { background: var(--accent-weione); height:100%; }
   .stack-track .seg-wa { background: var(--accent-washer); height:100%; }
   .stack-track .seg-imp { background: var(--accent-import); height:100%; }
+  .stack-track .seg-fc { background: var(--accent-forecast); height:100%; }
   .stack-track > div[data-wh] { cursor: pointer; }
 
   /* 2026-08-26 추가(16차, 사용자 지시): 재고 막대의 창고별 색상 구간에 마우스를 올리거나(PC) 터치하면
@@ -1300,14 +1304,14 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
     '위니온': { brand: '샤오미', category: 'TV' },
     '세탁기': { brand: '로보락', category: '세탁건조기' },
   };
-  const SEG_OF_WAREHOUSE = { 'TM 자체창고': 'seg-tm', '3PL': 'seg-pl', '수입창고': 'seg-imp', 'UBUS': 'seg-ub', '위니온': 'seg-we', '세탁기': 'seg-wa' };
-  const ACCENT_OF_WAREHOUSE = { 'TM 자체창고': '--accent-tm', '3PL': '--accent-3pl', '수입창고': '--accent-import', 'UBUS': '--accent-ubus', '위니온': '--accent-weione', '세탁기': '--accent-washer' };
+  const SEG_OF_WAREHOUSE = { 'TM 자체창고': 'seg-tm', '3PL': 'seg-pl', '수입창고': 'seg-imp', 'UBUS': 'seg-ub', '위니온': 'seg-we', '세탁기': 'seg-wa', '입고예정': 'seg-fc' };
+  const ACCENT_OF_WAREHOUSE = { 'TM 자체창고': '--accent-tm', '3PL': '--accent-3pl', '수입창고': '--accent-import', 'UBUS': '--accent-ubus', '위니온': '--accent-weione', '세탁기': '--accent-washer', '입고예정': '--accent-forecast' };
   // 2026-08-26 추가(12차): renderInboundChart에서 stack-track용 seg 클래스(seg-tm 등)를 SVG fill 색상으로
   // 변환할 때 쓰는 역참조 맵. ACCENT_OF_WAREHOUSE의 값(창고명 키)과 동일한 CSS 변수를 seg 클래스 키로 재매핑.
-  const SEG_COLOR_VAR = { 'seg-tm': '--accent-tm', 'seg-pl': '--accent-3pl', 'seg-imp': '--accent-import', 'seg-ub': '--accent-ubus', 'seg-we': '--accent-weione', 'seg-wa': '--accent-washer' };
+  const SEG_COLOR_VAR = { 'seg-tm': '--accent-tm', 'seg-pl': '--accent-3pl', 'seg-imp': '--accent-import', 'seg-ub': '--accent-ubus', 'seg-we': '--accent-weione', 'seg-wa': '--accent-washer', 'seg-fc': '--accent-forecast' };
   // 2026-08-26 추가(16차, 사용자 지시): 재고 막대의 창고별 색상 구간에 마우스를 올리면(PC)/터치하면(모바일)
   // 그 구간이 어느 창고의 몇 개인지 보여주는 툴팁에 쓰는 seg 클래스→창고명 매핑.
-  const SEG_LABEL = { 'seg-tm': 'TM 자체창고', 'seg-pl': '3PL', 'seg-imp': '수입창고', 'seg-ub': 'UBUS', 'seg-we': '위니온', 'seg-wa': '세탁기' };
+  const SEG_LABEL = { 'seg-tm': 'TM 자체창고', 'seg-pl': '3PL', 'seg-imp': '수입창고', 'seg-ub': 'UBUS', 'seg-we': '위니온', 'seg-wa': '세탁기', 'seg-fc': '입고예정' };
   const elBrand = document.getElementById('f-brand');
   const elCategory = document.getElementById('f-category');
   const elSeries = document.getElementById('f-series');
@@ -2127,6 +2131,30 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
             return `<div class="item-bar-row">
               <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
               <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="${escXml(singleWarehouse)}" data-qty="${r.val}"></div></div>
+            </div>`;
+          }).join('');
+        })();
+      } else if (singleWarehouse === '입고예정') {
+        // 2026-08-28 추가(30차, 사용자 지시): "입고예정" 창고를 단독 선택했을 때 품목별 목록이 비어 보이는
+        // 버그 수정 — FORECAST_BY_TM_INDEX(이번 달 입고예정 수량, TM 품목 인덱스 기준)를 값으로 사용해
+        // TM 자체창고/3PL/수입창고 분기와 동일한 방식으로 막대 목록을 만든다.
+        const seg = SEG_OF_WAREHOUSE['입고예정'];
+        const rows = idxsK.map(i => ({
+            name: items[i].name,
+            val: FORECAST_BY_TM_INDEX[i] || 0,
+          }))
+          .filter(r => r.val > 0)
+          .sort((a,b) => b.val - a.val)
+          .slice(0, limit);
+        headSuffix = `(입고예정) · ${idxsK.length}개 품목 중 상위 ${rows.length}`;
+        legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE['입고예정']})"></i>입고예정</span>`;
+        bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
+          const max = Math.max(...rows.map(r=>r.val));
+          return rows.map(r => {
+            const w = Math.max(2, Math.round(r.val/max*100));
+            return `<div class="item-bar-row">
+              <div class="top"><span class="nm">${r.name}</span><span class="val">${fmt(r.val)}개</span></div>
+              <div class="stack-track" style="width:${w}%"><div class="${seg}" style="width:100%" data-wh="입고예정" data-qty="${r.val}"></div></div>
             </div>`;
           }).join('');
         })();
