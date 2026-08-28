@@ -436,9 +436,25 @@
     padding: 24px 4px;
   }
 
-  .legend-mini { display:flex; gap:16px; font-size:12px; color:var(--text-secondary); margin: 14px 0 0; flex-wrap:wrap; }
+  .legend-mini { display:flex; gap:16px; font-size:12px; color:var(--text-secondary); margin: 0 0 10px; flex-wrap:wrap; }
   .legend-mini span { display:inline-flex; align-items:center; gap:5px; }
   .legend-mini i { width:8px; height:8px; border-radius:2px; display:inline-block; }
+
+  /* 2026-08-28 추가(25차, 사용자 지시): 범례를 해당 항목(품목 막대 목록/입고 차트) "위"로 옮기고,
+     스크롤 중에도 범례가 계속 보이도록 position:sticky를 적용. sticky의 기준(containing block)이
+     되는 .legend-sticky-wrap이 해당 구간(item-bars 등)만 감싸고 있어서, 그 구간을 벗어나면 자동으로
+     같이 스크롤되어 아래쪽 다른 콘텐츠(NEW 박스 등)와 겹치지 않는다. */
+  .legend-sticky-wrap { position: relative; }
+  .legend-mini.legend-sticky {
+    position: sticky;
+    top: 6px;
+    z-index: 5;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
 
   .filter-scope-note { font-size: 12.5px; font-weight: 700; color: var(--note-blue); margin: 0 0 10px; }
 
@@ -464,7 +480,7 @@
      품목"만 따로 분리해서 보여주는 하이라이트 박스. 월 누계 그래프와 달리 조회일자 슬라이더에 실제로 반응한다
      (원본 TM 엑셀의 일자별 시트에 그날의 TM매입/교환반품/3PL 입고 컬럼이 있어 날짜별 델타 추출이 가능함을
      확인함 — UBUS/위니온/세탁기/수입창고는 여전히 일자별 원본이 없어 이 박스에는 포함하지 않는다). */
-  .daily-inbound-box { border: 1px solid var(--accent-tm); background: var(--accent-tm-wash); border-radius: 10px; padding: 10px 12px; margin: 0 0 18px; }
+  .daily-inbound-box { border: 1px solid var(--accent-tm); background: var(--accent-tm-wash); border-radius: 10px; padding: 10px 12px; margin: 22px 0 18px; }
   .daily-inbound-head { display:flex; align-items:center; justify-content:space-between; margin: 0 0 6px; }
   .daily-inbound-head .dib-title { font-family: "Gothic A1", sans-serif; font-size: 13px; font-weight: 800; color: var(--accent-tm); display:flex; align-items:center; gap:6px; }
   .daily-inbound-head .dib-badge { font-size: 10.5px; font-weight: 800; color: #fff; background: var(--accent-tm); border-radius: 999px; padding: 1px 7px; }
@@ -946,17 +962,25 @@
       <div class="explorer-body">
         <div class="explorer-col">
           <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
-          <div class="item-bars" id="item-bars"></div>
-          <div class="legend-mini" id="item-legend"></div>
+          <!-- 2026-08-28 갱신(25차, 사용자 지시): 범례를 item-bars "위"로 이동 + sticky 적용
+               (자세한 설명은 위 CSS .legend-sticky-wrap/.legend-sticky 주석 참고). -->
+          <div class="legend-sticky-wrap">
+            <div class="legend-mini legend-sticky" id="item-legend"></div>
+            <div class="item-bars" id="item-bars"></div>
+          </div>
           <div id="acc-item-block" style="display:none;">
             <h3 style="margin-top:20px;" id="acc-item-list-head">[ACC] 품목별 잔여재고</h3>
-            <div class="item-bars" id="acc-item-bars"></div>
-            <div class="legend-mini" id="acc-item-legend"></div>
+            <div class="legend-sticky-wrap">
+              <div class="legend-mini legend-sticky" id="acc-item-legend"></div>
+              <div class="item-bars" id="acc-item-bars"></div>
+            </div>
           </div>
           <!-- 2026-08-27 갱신(23차, 사용자 지시): "신규 입고품목"(daily-inbound-box)과 "선택구간
                재고추이"(trend-head-title/trend-wrap)를 오른쪽 칸에서 이 왼쪽 칸의 [본품] 품목별
                잔여재고 목록 바로 아래로 옮겼다 — 두 블록 다 id로만 참조되므로 JS 로직 변경 없이
-               HTML 위치만 이동하면 된다. -->
+               HTML 위치만 이동하면 된다.
+               2026-08-28 갱신(25차, 사용자 지시): 위 목록과 아래 NEW 박스 사이 간격이 너무 붙어있다는
+               피드백에 따라 daily-inbound-box 상단 여백을 늘렸다(CSS margin 참고). -->
           <div class="daily-inbound-box" id="daily-inbound-box" style="display:none;">
             <div class="daily-inbound-head">
               <span class="dib-title"><span class="dib-badge">NEW</span><span id="daily-inbound-title">신규 입고 품목</span></span>
@@ -985,10 +1009,12 @@
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
-          <div class="chart-wrap" id="inbound-chart-wrap">
-            <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
+          <div class="legend-sticky-wrap">
+            <div class="legend-mini legend-sticky" id="inbound-legend"></div>
+            <div class="chart-wrap" id="inbound-chart-wrap">
+              <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
+            </div>
           </div>
-          <div class="legend-mini" id="inbound-legend"></div>
           <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
         </div>
       </div>
