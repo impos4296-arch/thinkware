@@ -1020,7 +1020,7 @@
             <option value="위니온">위니온</option>
             <option value="세탁기">세탁기</option>
             <option value="수입창고">수입창고</option>
-            <option value="입고예정">입고예정(예상)</option>
+            <option value="입고예정">입고예정(당월·예상)</option>
           </select>
         </div>
         <div class="field">
@@ -1066,12 +1066,16 @@
       <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
       <div class="explorer-summary" id="esum"></div>
       <p class="ubus-pinned-note">UBUS·위니온·세탁기·수입창고 재고는 일자별 데이터가 없어 각 창고/채널의 최신 스냅샷 값으로 고정 표시됩니다(세탁기는 주 2회 갱신). <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
-      <!-- 2026-08-28 추가(28차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
+      <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
            실제 보유 재고가 아닌 입고예정 탭 기준 예상 수치이므로 점선 테두리로 구분 표시되고, "전체" 선택 시에는
            포함되지 않으며(실재고 총합이 부풀려 보이지 않도록) 창고 목록에서 "입고예정"을 직접 선택했을 때만
            "선택 조건 합계"에 더해진다. 또한 위 4개 창고와 달리 아래 [본품]/[ACC] 품목별 목록·입고 그래프·
-           추이 그래프·주요 재고 알림에는 반영되지 않고 이 요약 타일에만 표시된다(집계 성격이 달라 혼동 방지).-->
-      <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 입고예정 탭 기준 예상 수치이며, "전체"에는 포함되지 않고 창고 목록에서 직접 선택했을 때만 위 "선택 조건 합계"에 더해집니다. 아래 품목별 목록·그래프에는 반영되지 않고 이 요약 타일에만 표시됩니다.</p>
+           추이 그래프·주요 재고 알림에는 반영되지 않고 이 요약 타일에만 표시된다(집계 성격이 달라 혼동 방지).
+           29차 갱신: "입고예정 수량은 입고시기가 당월에 해당되는 수량만 보여줘"(사용자 지시) — 입고예정
+           탭은 전체 스케줄(이번달+다음달+미정)을 다 보여주지만, 이 재고 현황 탭의 타일/합계는 "당월(이번
+           달)" 입고 예정분만 반영한다. "당월"은 재고 현황 탭의 조회일자 슬라이더와 무관하게("날짜와
+           상관없이", 사용자 지시) 실제 오늘 날짜(NOW) 기준으로 판단한다. -->
+      <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 이번 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다음달·미정 물량은 제외 · 조회일자와 무관하게 오늘 날짜 기준). "전체"에는 포함되지 않고 창고 목록에서 직접 선택했을 때만 위 "선택 조건 합계"에 더해집니다. 아래 품목별 목록·그래프에는 반영되지 않고 이 요약 타일에만 표시됩니다.</p>
 
       <div class="explorer-body">
         <div class="explorer-col">
@@ -1210,12 +1214,22 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
   const SCHED_ITEMS = scheduleItemsFiltered(INBOUND_SCHEDULE);
   const DROPPED_SCHED_NAMES = (INBOUND_SCHEDULE && INBOUND_SCHEDULE.items || [])
     .filter(it => isQuantityOnlyName(it.name)).map(it => it.name);
-  // 매칭된 TM 품목 인덱스별 "현재 반영되지 않은 입고예정 수량" 합계 — 재고 현황 탭의 "입고예정" 창고
-  // 타일·합계 계산에 재사용한다.
+  // 매칭된 TM 품목 인덱스별 "당월(이번 달) 입고예정 수량" 합계 — 재고 현황 탭의 "입고예정" 창고
+  // 타일·합계 계산에 재사용한다(사용자 지시: "재고현황 탭에서 입고예정 수량은 입고시기가 당월에 해당되는
+  // 수량을 보여줘", "날짜와 상관없이" — 즉 조회일자 슬라이더가 아니라 실제 오늘(NOW) 기준 이번 달로 판단).
+  // 입고예정 탭 자체는 월별 전체 스케줄을 그대로 보여주므로 이 필터링은 재고 현황 탭 전용이다. 시기가
+  // "미정"(TBD 등 날짜를 특정할 수 없는 배치)은 당월 여부를 알 수 없으므로 포함하지 않는다.
   const FORECAST_BY_TM_INDEX = {};
+  const curYear = NOW.getFullYear(), curMonth = NOW.getMonth();
   SCHED_ITEMS.forEach(it => {
     if (it.matchIndex == null) return;
-    const qty = it.remaining.reduce((s, b) => s + (b.shipQty || 0), 0);
+    const qty = it.remaining.reduce((s, b) => {
+      const rd = resolveScheduleDate(b.warehouseDate);
+      if (rd == null) return s;
+      const dt = new Date(rd);
+      const isThisMonth = dt.getUTCFullYear() === curYear && dt.getUTCMonth() === curMonth;
+      return isThisMonth ? s + (b.shipQty || 0) : s;
+    }, 0);
     FORECAST_BY_TM_INDEX[it.matchIndex] = (FORECAST_BY_TM_INDEX[it.matchIndex] || 0) + qty;
   });
 
@@ -1939,7 +1953,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE) {
       <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 24일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('수입창고')}"><p class="esum-name">수입창고 <span class="pin-dot" title="8월 26일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정 <span class="pin-dot" title="입고예정 탭 기준, 예상 수치"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
 
