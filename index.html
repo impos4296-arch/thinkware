@@ -1183,7 +1183,8 @@
 
       <div class="date-row">
         <label for="f-date">조회일자</label>
-        <input type="range" id="f-date" min="1" max="28" value="28" step="1">
+        <input type="range" id="f-date" min="1" max="28" value="28" step="1" list="f-date-ticks">
+        <datalist id="f-date-ticks"></datalist>
         <span class="date-badge" id="date-badge">2026-08-26</span>
         <span class="date-nodata-note" id="date-nodata-note" hidden></span>
       </div>
@@ -1543,6 +1544,19 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     y.setDate(y.getDate() - 1);
     const defaultDay = Math.min(daysInMonth, Math.max(MIN_QUERY_DAY || 1, y.getDate()));
     elDate.value = String(defaultDay);
+  }
+  // 2026-08-31 추가(사용자 지시: "바에 직접적으로 날짜가 없더라도 날짜별 구분 칸이 있다던지 하는 방식"):
+  // 슬라이더 자체에는 눈금이 전혀 없어 손으로 밀어봐야만 날짜가 바뀐다는 걸 알 수 있었다. <input
+  // type="range">의 표준 list 속성(datalist)을 쓰면 각 날짜 경계마다 브라우저가 자체적으로 작은 눈금
+  // 표시를 그려준다 — 최소값(MIN_QUERY_DAY)부터 최대값(daysInMonth)까지 하루 단위로 옵션을 채운다.
+  {
+    const ticks = document.getElementById('f-date-ticks');
+    if (ticks) {
+      const lo = MIN_QUERY_DAY || 1;
+      let html = '';
+      for (let d = lo; d <= daysInMonth; d++) html += `<option value="${d}"></option>`;
+      ticks.innerHTML = html;
+    }
   }
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
