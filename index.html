@@ -2143,7 +2143,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         elNoDataNote.hidden = true;
       } else {
         elNoDataNote.hidden = false;
-        elNoDataNote.textContent = `※ ${monthPrefix}${String(maxDay).padStart(2,'0')} 이후 TM 데이터가 아직 없어 ${monthPrefix}${String(maxDay).padStart(2,'0')} 기준 값을 표시합니다`;
+        elNoDataNote.textContent = `※ 잔여재고는 ${NOW.getMonth() + 1}/${maxDay} 기준`;
       }
     }
     const dayArr = hasDayData ? days[date] : days[String(maxDay)];
