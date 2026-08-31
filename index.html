@@ -1013,12 +1013,23 @@
         unlock();
       }
 
+      // 2026-08-31 추가(버그 수정, 사용자 미보고 발견): sessionStorage 캐시는 "복호화된 JSON"만 저장하고
+      // 있어, 배포로 ENC_PAYLOAD(원문 데이터)가 바뀌어도 같은 탭에서는 예전에 캐시해둔 구버전 JSON을 계속
+      // 재사용하는 버그가 있었다(기준일/미발주 수량 등이 최신 배포 후에도 안 바뀌어 보이는 원인). ENC_PAYLOAD.iv는
+      // encrypt.js가 매 실행(=매 배포)마다 새로 무작위 생성하므로 배포 버전을 구분하는 값으로 그대로 쓸 수 있다
+      // — 캐시할 때 이 값을 같이 저장해두고, 다음 로드 시 현재 ENC_PAYLOAD.iv와 다르면 캐시를 버리고 새로
+      // 비밀번호를 물어 최신 데이터로 다시 복호화한다.
+      var payloadVersion = (typeof ENC_PAYLOAD !== 'undefined' && ENC_PAYLOAD.iv) || '';
+
       async function tryUnlock() {
         btn.disabled = true;
         err.textContent = '';
         try {
           var jsonText = await decryptPayload(input.value);
-          try { sessionStorage.setItem('tw_data', jsonText); } catch (e) {}
+          try {
+            sessionStorage.setItem('tw_data', jsonText);
+            sessionStorage.setItem('tw_data_v', payloadVersion);
+          } catch (e) {}
           startDashboard(jsonText);
         } catch (e) {
           err.textContent = '비밀번호가 올바르지 않습니다.';
@@ -1031,16 +1042,22 @@
 
       // 같은 탭에서 새로고침할 때 다시 비밀번호를 묻지 않도록, 복호화된 JSON(비밀번호 자체가 아님)을
       // sessionStorage에 캐시해둔다 — 탭을 새로 열거나 다른 브라우저/기기에서는 다시 물어봄(기존 동작과 동일).
-      var cached = null;
-      try { cached = sessionStorage.getItem('tw_data'); } catch (e) {}
-      if (cached) {
+      // 단, 캐시된 버전(tw_data_v)이 현재 배포의 ENC_PAYLOAD.iv와 다르면(=그 사이 새로 배포됨) 캐시를 쓰지
+      // 않고 버려서 항상 최신 데이터가 보이도록 한다.
+      var cached = null, cachedV = null;
+      try {
+        cached = sessionStorage.getItem('tw_data');
+        cachedV = sessionStorage.getItem('tw_data_v');
+      } catch (e) {}
+      if (cached && cachedV === payloadVersion) {
         try {
           startDashboard(cached);
         } catch (e) {
-          try { sessionStorage.removeItem('tw_data'); } catch (e2) {}
+          try { sessionStorage.removeItem('tw_data'); sessionStorage.removeItem('tw_data_v'); } catch (e2) {}
           input.focus();
         }
       } else {
+        try { sessionStorage.removeItem('tw_data'); sessionStorage.removeItem('tw_data_v'); } catch (e) {}
         input.focus();
       }
       btn.addEventListener('click', tryUnlock);
