@@ -583,8 +583,21 @@
   .trend-head .lbl { font-size:12px; color:var(--text-muted); }
   .trend-head .now { font-family:"Gothic A1",sans-serif; font-weight:800; font-size:16px; font-variant-numeric: tabular-nums; }
   .trend-wrap.chart-collapsed .trend-svg { display: none; }
-  svg.trend-svg { width:100%; height:120px; display:block; overflow: visible; }
+  /* 2026-08-31 추가(사용자 지시: "그래프에 마우스를 놓으면 날짜와 수량 보여줘"): 차트 위에 마우스를 올리면
+     가장 가까운 날짜의 값을 툴팁으로 보여주기 위한 컨테이너/가이드선/점/툴팁 스타일. */
+  .trend-chart-area { position: relative; }
+  .trend-wrap.chart-collapsed .trend-chart-area { display: none; }
+  svg.trend-svg { width:100%; height:120px; display:block; overflow: visible; cursor: crosshair; }
   .trend-svg .grid-line { stroke: var(--border); stroke-width: 1; }
+  .trend-svg .hover-guide { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; pointer-events: none; }
+  .trend-svg .hover-dot { fill: var(--surface-2); stroke: var(--accent-3pl); stroke-width: 2; opacity: 0; pointer-events: none; }
+  .trend-tooltip {
+    position: absolute; top: 0; left: 0; transform: translate(-50%, -100%);
+    background: var(--text-primary); color: var(--surface-2);
+    font-family: "Gothic A1", sans-serif; font-size: 11.5px; font-weight: 700;
+    padding: 4px 8px; border-radius: 6px; white-space: nowrap;
+    pointer-events: none; z-index: 5; margin-top: -6px;
+  }
   .trend-svg .area-fill { fill: var(--accent-3pl); opacity: 0.12; }
   .trend-svg .line-path { fill:none; stroke: var(--accent-3pl); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .trend-svg .end-dot { fill: var(--accent-3pl); }
@@ -1238,7 +1251,10 @@
               <span class="trend-head-info"><span class="lbl">선택한 조건의 일별 합계 추이</span><span class="now" id="trend-now">-</span></span>
               <button type="button" class="panel-toggle-btn chart-toggle-btn" id="trend-toggle-btn">그래프 감추기</button>
             </div>
-            <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
+            <div class="trend-chart-area" id="trend-chart-area">
+              <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
+              <div class="trend-tooltip" id="trend-tooltip" hidden></div>
+            </div>
           </div>
         </div>
         <div class="explorer-col">
@@ -2807,6 +2823,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     document.getElementById('trend-now').textContent = fmt(trendNow) + '개';
   }
 
+  // 2026-08-31 추가(사용자 지시: "해당 그래프에 마우스를 놓으면 날짜와 수량 보여줘"): renderTrend가 매번
+  // 새로 그리는 points/dayKeys와 좌표 변환 함수(x/y)를 TREND_STATE에 저장해두고, 아래 trendPointerMove가
+  // 이를 그대로 재사용해 마우스가 가장 가까운 날짜의 값을 찾아 툴팁으로 보여준다.
+  const TREND_STATE = { points: [], dayKeys: [], x: null, y: null, W: 400, H: 120 };
+
   function renderTrend(points, dayKeys) {
     const svg = document.getElementById('trend-svg');
     const W = 400, H = 120, PAD = 8;
@@ -2814,6 +2835,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const range = (max - min) || 1;
     const x = i => PAD + (i/(points.length-1)) * (W - PAD*2);
     const y = v => H - PAD - ((v-min)/range) * (H - PAD*2 - 14);
+    TREND_STATE.points = points;
+    TREND_STATE.dayKeys = dayKeys;
+    TREND_STATE.x = x;
+    TREND_STATE.y = y;
+    TREND_STATE.W = W;
+    TREND_STATE.H = H;
 
     let path = points.map((v,i) => (i===0?'M':'L') + x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' ');
     let area = path + ` L${x(points.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
@@ -2835,7 +2862,59 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       <text class="end-label" x="${labelX}" y="${lastY-8}" text-anchor="${labelAnchor}">${points[points.length-1].toLocaleString('ko-KR')}</text>
       <text class="axis-label" x="${x(0)}" y="${H-1}">8/${dayKeys[0]}</text>
       <text class="axis-label" x="${x(points.length-1)}" y="${H-1}" text-anchor="end">8/${dayKeys[dayKeys.length-1]}</text>
+      <line class="hover-guide" id="trend-hover-guide" x1="0" y1="0" x2="0" y2="${H}" />
+      <circle class="hover-dot" id="trend-hover-dot" cx="0" cy="0" r="4" />
     `;
+  }
+
+  // 마우스(PC)/터치(모바일)로 그래프 위 아무 지점이나 가리키면, x좌표상 가장 가까운 날짜를 찾아 그 날짜의
+  // 실제 값을 점선 가이드+점+말풍선 툴팁으로 보여준다. renderTrend가 svg.innerHTML을 통째로 새로 그려도
+  // <svg id="trend-svg"> 엘리먼트 자체는 그대로이므로, 이벤트 리스너는 한 번만 붙이면 이후 모든 재렌더링에도
+  // 계속 동작한다.
+  function trendPointerMove(clientX, clientY) {
+    const { points, dayKeys, x: xFn, y: yFn, W, H } = TREND_STATE;
+    if (!points.length || !xFn) return;
+    const svg = document.getElementById('trend-svg');
+    const area = document.getElementById('trend-chart-area');
+    const tooltip = document.getElementById('trend-tooltip');
+    const guide = document.getElementById('trend-hover-guide');
+    const dot = document.getElementById('trend-hover-dot');
+    if (!svg || !area || !tooltip) return;
+    const rect = svg.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const relX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const vbX = relX * W;
+    const n = points.length;
+    let idx = n > 1 ? Math.round(((vbX - 8) / (W - 16)) * (n - 1)) : 0;
+    idx = Math.max(0, Math.min(n - 1, idx));
+    const px = xFn(idx), py = yFn(points[idx]);
+    if (guide) { guide.setAttribute('x1', px); guide.setAttribute('x2', px); guide.style.opacity = 1; }
+    if (dot) { dot.setAttribute('cx', px); dot.setAttribute('cy', py); dot.style.opacity = 1; }
+    tooltip.hidden = false;
+    tooltip.textContent = `8/${dayKeys[idx]} · ${points[idx].toLocaleString('ko-KR')}개`;
+    const areaRect = area.getBoundingClientRect();
+    const pxPixel = (px / W) * rect.width;
+    const pyPixel = (py / H) * rect.height;
+    tooltip.style.left = Math.max(30, Math.min(areaRect.width - 30, pxPixel)) + 'px';
+    tooltip.style.top = pyPixel + 'px';
+  }
+  function trendPointerLeave() {
+    const tooltip = document.getElementById('trend-tooltip');
+    const guide = document.getElementById('trend-hover-guide');
+    const dot = document.getElementById('trend-hover-dot');
+    if (tooltip) tooltip.hidden = true;
+    if (guide) guide.style.opacity = 0;
+    if (dot) dot.style.opacity = 0;
+  }
+  {
+    const trendSvgEl = document.getElementById('trend-svg');
+    if (trendSvgEl) {
+      trendSvgEl.addEventListener('mousemove', e => trendPointerMove(e.clientX, e.clientY));
+      trendSvgEl.addEventListener('mouseleave', trendPointerLeave);
+      trendSvgEl.addEventListener('touchstart', e => { if (e.touches[0]) trendPointerMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      trendSvgEl.addEventListener('touchmove', e => { if (e.touches[0]) trendPointerMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+      trendSvgEl.addEventListener('touchend', trendPointerLeave);
+    }
   }
 
   // 2026-08-26 추가(12차): "제품별 이번 달 입고 수량"을 SVG 막대그래프로 그린다. 일자별 원본 데이터가 없어
