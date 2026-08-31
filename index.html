@@ -1193,6 +1193,10 @@
            때) 입고예정(당월) 수량이 "선택 조건 합계"와 [본품]/[ACC] 품목별 목록에 더해진다. 다만 일자별 이력이
            없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다. -->
       <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 이번 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다음달·미정 물량은 제외 · 조회일자와 무관하게 오늘 날짜 기준). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
+      <!-- 2026-08-31 추가(사용자 지시: "세탁기는 주 2회, 입고예정은 주 1회 — 해당 항목은 별도 주석이
+           필요할거 같아"): 창고마다 원본 파일 갱신 주기가 달라 같은 조회일자를 봐도 최신성이 다르다는 점을
+           위 설명 문단들 속에 섞어두지 않고, 갱신 주기만 모아 한눈에 보이도록 별도 문단으로 분리했다. -->
+      <p class="ubus-pinned-note update-freq-note">갱신 주기 — TM 자체창고·3PL·UBUS·위니온: 파일이 올라올 때마다(대체로 매일) · 세탁기: 주 2회 · 입고예정: 주 1회(매주 월요일) · 수입창고·미발주/미출하: 비정기(파일이 새로 올라올 때만).</p>
 
       <div class="explorer-body">
         <div class="explorer-col">
@@ -2261,11 +2265,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     esum.innerHTML = `
       <div class="${tileClass('TM 자체창고')}"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('3PL')}"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="8월 30일 스냅샷 고정(주말 설치 포함)"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="8월 28일 스냅샷 고정"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="8월 28일 스냅샷 고정, 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 8월 28일 스냅샷 고정"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="조회일자별로 누적된 값 · 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음)"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">미발주/미출하 <span class="pin-dot" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 8월 31일 자료 기준"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
