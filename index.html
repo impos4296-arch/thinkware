@@ -1206,7 +1206,7 @@
            창고 목록에서 "전체"를 다시 선택했을 때만(또는 "입고예정"을 다른 창고와 함께 명시적으로 선택했을
            때) 입고예정(당월) 수량이 "선택 조건 합계"와 [본품]/[ACC] 품목별 목록에 더해진다. 다만 일자별 이력이
            없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다. -->
-      <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 이번 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다음달·미정 물량은 제외 · 조회일자와 무관하게 오늘 날짜 기준). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
+      <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 상단 기준일이 속한 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다른 달·미정 물량은 제외 · 조회일자 슬라이더와는 무관). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
       <!-- 2026-08-31 추가(사용자 지시: "세탁기는 주 2회, 입고예정은 주 1회 — 해당 항목은 별도 주석이
            필요할거 같아"): 창고마다 원본 파일 갱신 주기가 달라 같은 조회일자를 봐도 최신성이 다르다는 점을
            위 설명 문단들 속에 섞어두지 않고, 갱신 주기만 모아 한눈에 보이도록 별도 문단으로 분리했다. -->
@@ -1435,11 +1435,20 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     .filter(it => isQuantityOnlyName(it.name)).map(it => it.name);
   // 매칭된 TM 품목 인덱스별 "당월(이번 달) 입고예정 수량" 합계 — 재고 현황 탭의 "입고예정" 창고
   // 타일·합계 계산에 재사용한다(사용자 지시: "재고현황 탭에서 입고예정 수량은 입고시기가 당월에 해당되는
-  // 수량을 보여줘", "날짜와 상관없이" — 즉 조회일자 슬라이더가 아니라 실제 오늘(NOW) 기준 이번 달로 판단).
-  // 입고예정 탭 자체는 월별 전체 스케줄을 그대로 보여주므로 이 필터링은 재고 현황 탭 전용이다. 시기가
-  // "미정"(TBD 등 날짜를 특정할 수 없는 배치)은 당월 여부를 알 수 없으므로 포함하지 않는다.
+  // 수량을 보여줘"). 입고예정 탭 자체는 월별 전체 스케줄을 그대로 보여주므로 이 필터링은 재고 현황 탭 전용이다.
+  // 시기가 "미정"(TBD 등 날짜를 특정할 수 없는 배치)은 당월 여부를 알 수 없으므로 포함하지 않는다.
+  // 2026-09-01 수정(37차, 사용자 지시): "당월"의 기준을 실제 오늘 날짜(NOW)가 아니라 상단 기준일(latestAsOf,
+  // #top-meta-date에 표시되는 값)이 속한 달로 변경 — 실제 날짜가 다음 달로 넘어간 직후(예: 9/1)에는 여전히
+  // 8월 데이터가 기준일인데도 "당월=9월"로 판정해버리면, 9월에 입고 예정인 수량이 마치 "오늘(기준일=8/31)
+  // 당장 들어오는 것"처럼 큰 수치로 표시되어 오해를 준다는 지적("어차피 8월 기준 9월에 입고될 수량은 입고예정
+  // 탭을 보면 되니깐" — 재고 현황 탭에는 기준일이 속한 달의 예정 수량만 보이면 되고, 다른 달 수량은 입고예정
+  // 탭에서 확인 가능하므로 이 타일에 섞어 보여줄 필요가 없음). latestAsOf는 이미 "YYYY-MM-DD" 형식의 ISO
+  // 문자열이므로 그대로 파싱해서 사용 — 매달 데이터가 넘어가면 latestAsOf 자체가 자동으로 새 달을 가리키므로
+  // (tmAsOf/SOURCE_ASOF가 실제 데이터 기준으로 매번 계산됨) DATA_MONTH_YEAR/DATA_MONTH_IDX와 달리 이 상수는
+  // 별도로 수동 갱신할 필요가 없다.
   const FORECAST_BY_TM_INDEX = {};
-  const curYear = NOW.getFullYear(), curMonth = NOW.getMonth();
+  const [refAsOfYear, refAsOfMonth1] = latestAsOf.split('-').map(Number);
+  const curYear = refAsOfYear, curMonth = refAsOfMonth1 - 1;
   SCHED_ITEMS.forEach(it => {
     if (it.matchIndex == null) return;
     const qty = it.remaining.reduce((s, b) => {
@@ -2309,7 +2318,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="조회일자별로 누적된 값 · 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음)"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="이번 달(당월) 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="상단 기준일이 속한 달의 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">미발주/미출하 <span class="pin-dot" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 8월 31일 자료 기준"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
