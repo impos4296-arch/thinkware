@@ -437,6 +437,12 @@
   }
   .esum-tile.total { background: var(--accent-3pl-wash); border-color: transparent; }
   .esum-tile.active { border-color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--text-primary); }
+  /* 2026-09-01 추가(38차, 사용자 지시): "창고를 클릭하면 해당 창고로 선택되고 다시 클릭하면 해제"되도록
+     esum 타일(선택 조건 합계 제외 8개)을 클릭 가능하게 만든다 — 실제 토글 동작은 JS(esum 클릭 델리게이션,
+     toggleMselOption 재사용)에서 처리하고, 여기서는 클릭 가능함을 시각적으로 드러내는 커서/호버 스타일만 추가. */
+  .esum-tile[data-warehouse] { cursor: pointer; transition: border-color .12s, box-shadow .12s, background .12s; }
+  .esum-tile[data-warehouse]:hover { border-color: var(--text-muted); }
+  .esum-tile[data-warehouse].active:hover { border-color: var(--text-primary); }
   /* 2026-08-28 추가(28차, 사용자 지시): "입고예정" 창고 타일 — 실제 물리적 재고가 아닌 예상 수치이므로
      점선 테두리 + 옅은 배경으로 다른 창고 타일과 시각적으로 구분한다(실재고와 혼동 방지). */
   .esum-tile.forecast { background: var(--surface); border-style: dashed; border-color: var(--border-strong); }
@@ -2312,14 +2318,14 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
 
     const esum = document.getElementById('esum');
     esum.innerHTML = `
-      <div class="${tileClass('TM 자체창고')}"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('3PL')}"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('UBUS')}"><p class="esum-name">UBUS <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('위니온')}"><p class="esum-name">위니온 <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('세탁기')}"><p class="esum-name">세탁기 <span class="pin-dot" title="조회일자별로 누적된 값 · 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음)"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="상단 기준일이 속한 달의 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}"><p class="esum-name">미발주/미출하 <span class="pin-dot" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 8월 31일 자료 기준"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('TM 자체창고')}" data-warehouse="TM 자체창고"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('3PL')}" data-warehouse="3PL"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('UBUS')}" data-warehouse="UBUS"><p class="esum-name">UBUS <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('위니온')}" data-warehouse="위니온"><p class="esum-name">위니온 <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('세탁기')}" data-warehouse="세탁기"><p class="esum-name">세탁기 <span class="pin-dot" title="조회일자별로 누적된 값 · 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}" data-warehouse="수입창고"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음)"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}" data-warehouse="입고예정"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="상단 기준일이 속한 달의 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}" data-warehouse="미발주"><p class="esum-name">미발주/미출하 <span class="pin-dot" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 8월 31일 자료 기준"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
     // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): "창고" 필터 패널에도 다른
@@ -3003,6 +3009,25 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
 
   elWarehouse.addEventListener('change', () => { normalizeMultiSelect(elWarehouse); applyWarehouseLock(); syncMsel('warehouse'); render(); });
+  // 2026-09-01 추가(38차, 사용자 지시: "창고를 클릭하면 해당 창고로 선택되고 다시 클릭하면 해제되는 기능
+  // 추가해줘"): esum 타일(선택 조건 합계 제외 8개, 각 tile div에 render()에서 data-warehouse 속성을 심어둠)을
+  // 직접 클릭해서 위 창고 드롭다운과 동일한 다중 선택을 조작할 수 있게 한다. #esum 컨테이너 자체는 정적
+  // 요소이고 render()마다 innerHTML만 교체되므로(엘리먼트는 그대로 유지) 델리게이션 방식으로 리스너를 한 번만
+  // 등록한다. 토글 기준은 실제 <option>의 selected 여부(체크박스 msel 패널과 동일한 소스) — 문자 그대로
+  // "전체"가 선택된 상태(개별 옵션은 하나도 selected=true가 아님)에서 타일을 클릭하면 selected=false→true로
+  // 바뀌고, toggleMselOption이 발생시키는 change 이벤트의 normalizeMultiSelect가 "전체"를 자동으로 해제해
+  // 그 창고 하나만 남긴다(체크박스 패널에서 개별 항목을 처음 체크할 때와 동일한 동작). 특정 창고들이 이미
+  // 개별 선택돼 있는 상태(기본 화면 등)에서 그 중 하나를 클릭하면 그 창고만 selected=false로 꺼지고 나머지
+  // 선택은 그대로 유지된다. toggleMselOption 자체가 select 값 변경 + change 이벤트 dispatch까지 처리하므로
+  // 여기서 별도로 render()를 호출할 필요는 없다(change 리스너가 이미 처리).
+  document.getElementById('esum').addEventListener('click', (e) => {
+    const tile = e.target.closest('.esum-tile[data-warehouse]');
+    if (!tile) return;
+    const value = tile.dataset.warehouse;
+    const opt = Array.from(elWarehouse.options).find(o => o.value === value);
+    if (!opt) return;
+    toggleMselOption(elWarehouse, value, !opt.selected);
+  });
   elBrand.addEventListener('change', () => { normalizeMultiSelect(elBrand); fillCategory(); fillSeries(); syncMsel('brand'); render(); });
   elCategory.addEventListener('change', () => { normalizeMultiSelect(elCategory); fillSeries(); syncMsel('category'); render(); });
   elSeries.addEventListener('change', () => { normalizeMultiSelect(elSeries); syncMsel('series'); fillProduct(); render(); });
