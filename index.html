@@ -597,6 +597,11 @@
   .avail-wow { font-size: 11px; font-weight: 800; margin-left: 5px; font-variant-numeric: tabular-nums; }
   .avail-wow.up { color: var(--accent-tm); }
   .avail-wow.down { color: var(--low-200); }
+  /* 2026-09-02(커밋 #80): 안내문구 안의 범례용 ▲/▼ 아이콘은 실제 데이터 행의 .avail-wow와 클래스를 분리
+     (범례가 .avail-wow.up/.avail-wow.down 카운트에 섞여 집계되는 것을 방지하기 위함). 색상만 재사용. */
+  .avail-wow-legend { font-weight: 800; }
+  .avail-wow-legend.up { color: var(--accent-tm); }
+  .avail-wow-legend.down { color: var(--low-200); }
   .avail-row-sub { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
   /* 2026-08-27 추가(19차, 사용자 지시): "제품별 이번 달 입고 수량" 패널 위에 "선택일자에 신규로 입고된
@@ -1319,7 +1324,7 @@
                아래 그대로 유지하고 이 패널을 그 위에 배치한다(사용자 확인 사항). -->
           <div class="low-stock-panel" id="avail-days-panel">
             <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-            <p class="lsp-sub">물류팀이 매주 월요일 집계하는 실제 출하 기준 지표 · 가용일수 = 총재고 ÷ 최근 일평균 출하량(대략 며칠 분 재고가 남았는지) · 예상 소진일 = 자료 기준일 + 가용일수 · 조회일자·필터 설정과 무관하게 항상 최신 파일 기준 24개 핵심 본품(로봇청소기 S8·S9·S10·Qrevo·Saros Z70 · Stand청소기 H60 · 블루벤트 음식물처리기)만 표시됩니다.</p>
+            <p class="lsp-sub">물류팀이 매주 월요일 집계하는 실제 출하 기준 지표 · 가용일수 = 총재고 ÷ 최근 일평균 출하량(대략 며칠 분 재고가 남았는지) · 예상 소진일 = 자료 기준일 + 가용일수 · 조회일자·필터 설정과 무관하게 항상 최신 파일 기준 24개 핵심 본품(로봇청소기 S8·S9·S10·Qrevo·Saros Z70 · Stand청소기 H60 · 블루벤트 음식물처리기)만 표시됩니다. · <b>전주대비(▲/▼ 숫자)</b> = 전주 대비 가용일수가 며칠 늘거나 줄었는지(일 단위) — <span class="avail-wow-legend up">▲</span>는 가용일수 증가(재고가 더 여유로워짐, 출하 대비 재고가 상대적으로 늘었거나 최근 출하가 둔화됨), <span class="avail-wow-legend down">▼</span>는 가용일수 감소(재고가 더 빨리 줄고 있음 — 출하가 늘었거나 재고가 줄어든 것으로, 소진 속도가 빨라지고 있다는 뜻이니 특히 주의). 예: ▲7 = 전주보다 가용일수가 약 7일 늘어남.</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
           <div class="low-stock-panel" id="low-stock-panel">
@@ -3288,7 +3293,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const na = rows.filter(r => r.availDaysCur == null);
     function rowHtml(r) {
       const wowHtml = r.wowChange == null ? '' :
-        `<span class="avail-wow ${r.wowChange >= 0 ? 'up' : 'down'}">${r.wowChange >= 0 ? '▲' : '▼'}${fmtNum(Math.abs(r.wowChange))}</span>`;
+        `<span class="avail-wow ${r.wowChange >= 0 ? 'up' : 'down'}" title="전주(${data.prevWeek || ''}) 대비 가용일수 ${r.wowChange >= 0 ? '+' : ''}${fmtNum(r.wowChange)}일 ${r.wowChange >= 0 ? '(재고 여유 개선)' : '(재고 소진 가속 — 주의)'}">${r.wowChange >= 0 ? '▲' : '▼'}${fmtNum(Math.abs(r.wowChange))}</span>`;
       return `<div class="avail-row">
         <div class="avail-row-top"><span class="avail-nm">${dispName(r.label)}</span><span class="avail-days-val">${fmtDays(r.availDaysCur)}${wowHtml}</span></div>
         <div class="avail-row-sub"><span>총재고 ${fmtNum(r.curStock)}개</span><span>일평균 ${fmtNum(r.dailyAvg)}개</span><span>예상 소진일 ${r.projected}</span></div>
