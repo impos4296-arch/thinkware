@@ -291,6 +291,20 @@
     box-shadow: 0 12px 30px rgba(0,0,0,0.22);
   }
   .msel.open .msel-panel { display: block; }
+  /* 2026-09-01 추가(사용자 지시: "제품 필터에서 항목들을 볼수있는 사이즈를 마우스 드래그를 통해 크기를
+     조정할수 있도록 해줘"): "제품" 필터는 품목이 수백 개라 기본 220px 안에서는 한 번에 몇 개밖에 안 보여
+     스크롤을 자주 해야 한다. 이 패널만 세로 방향으로 마우스 드래그 리사이즈가 가능하도록 우측 하단에
+     브라우저 기본 리사이즈 핸들을 노출한다(다른 필터는 항목 수가 적어 기존처럼 내용에 맞춰 자동으로
+     높이가 정해지는 그대로 두고 변경하지 않음). 시작 높이는 기존 max-height와 동일한 220px로 유지해
+     기본 화면은 그대로 보이고, 드래그로 최대 75vh까지 늘릴 수 있게 하며, 너무 작아지지 않도록
+     min-height로 하한을 둔다. overflow-x는 hidden으로 둬 가로 스크롤/리사이즈가 끼어들지 않게 한다. */
+  .msel[data-msel="product"] .msel-panel {
+    height: 220px;
+    min-height: 140px;
+    max-height: 75vh;
+    resize: vertical;
+    overflow-x: hidden;
+  }
   .msel-opt {
     display: flex;
     align-items: center;
