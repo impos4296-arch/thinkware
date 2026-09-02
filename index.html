@@ -1318,18 +1318,21 @@
         <div class="explorer-col">
           <!-- 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤
                제품인지를 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): 물류팀이 매주 월요일
-               집계하는 실제 출하 기준 "가용일수" 데이터를 별도 알림 패널로 추가. 조회일자·필터와 무관하게
-               항상 최신 파일(24개 핵심 본품) 기준으로 고정 표시하며(입고예정 탭과 같은 정적 스냅샷 방식),
-               renderAvailDays()에서 boot() 시점에 한 번만 그린다. 기존 "주요 재고 알림"(수량 기반)은
-               아래 그대로 유지하고 이 패널을 그 위에 배치한다(사용자 확인 사항). -->
+               집계하는 실제 출하 기준 "가용일수" 데이터를 별도 알림 패널로 추가. 자료 자체(총재고·일평균·
+               가용일수 수치)는 조회일자와 무관하게 항상 최신 파일(24개 핵심 본품) 기준으로 고정이지만,
+               2026-09-02(커밋 #81, 사용자 지시)부터는 브랜드·카테고리·시리즈·제품 필터로 "어떤 품목을
+               보여줄지"는 좁혀진다(render()에서 renderAvailDays(brand, category, series, product) 호출 —
+               이름 기반 추정 매칭, AVAIL_CLASSIFY 표 참고). 창고 필터는 파일 수치가 이미 창고 합산값이라
+               적용하지 않는다. 기존 "주요 재고 알림"(수량 기반)은 아래 그대로 유지하고 이 패널을 그 위에
+               배치한다(사용자 확인 사항). -->
           <div class="low-stock-panel" id="avail-days-panel">
             <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-            <p class="lsp-sub">물류팀이 매주 월요일 집계하는 실제 출하 기준 지표 · 가용일수 = 총재고 ÷ 최근 일평균 출하량(대략 며칠 분 재고가 남았는지) · 예상 소진일 = 자료 기준일 + 가용일수 · 조회일자·필터 설정과 무관하게 항상 최신 파일 기준 24개 핵심 본품(로봇청소기 S8·S9·S10·Qrevo·Saros Z70 · Stand청소기 H60 · 블루벤트 음식물처리기)만 표시됩니다. · <b>전주대비(▲/▼ 숫자)</b> = 전주 대비 가용일수가 며칠 늘거나 줄었는지(일 단위) — <span class="avail-wow-legend up">▲</span>는 가용일수 증가(재고가 더 여유로워짐, 출하 대비 재고가 상대적으로 늘었거나 최근 출하가 둔화됨), <span class="avail-wow-legend down">▼</span>는 가용일수 감소(재고가 더 빨리 줄고 있음 — 출하가 늘었거나 재고가 줄어든 것으로, 소진 속도가 빨라지고 있다는 뜻이니 특히 주의). 예: ▲7 = 전주보다 가용일수가 약 7일 늘어남.</p>
+            <p class="lsp-sub">매주 월요일 물류팀 집계(24개 핵심 본품) · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 전주대비 가용일수 증감(일) — ▲여유 늘어남, ▼주의(더 빨리 소진)</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
           <div class="low-stock-panel" id="low-stock-panel">
             <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">선택한 창고 기준 합계(TM 자체창고·3PL·UBUS만 해당, 수입창고 제외) · B급 재고·리퍼제품·재고 0개 품목은 제외 · 이 알림은 "구분"(본품만/ACC 포함) 설정과 무관하게 항상 본품(완제품) 기준으로만 집계됩니다 · 로봇청소기는 S10·S9·S8만, Stand 청소기는 F25 제외 · 위 브랜드·카테고리·창고 필터 조건 반영(시리즈·제품·구분 필터는 이 알림에는 적용되지 않습니다)</p>
+            <p class="lsp-sub">창고 기준 합계(TM·3PL·UBUS, 수입창고 제외) · B급·리퍼·재고 0개 제외 · 항상 본품 기준(구분 설정 무관) · 로봇청소기 S10·S9·S8, Stand청소기(F25 제외) 한정 · 창고·브랜드·카테고리·시리즈·제품 필터 모두 반영</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
           </div>
           <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
@@ -1368,6 +1371,53 @@ const ENC_PAYLOAD = {"salt":"fIjPIbm+d4kaYOY4i3Q4+w==","iv":"VluujuqDDGG8JnDb","
 </script>
 <script>
 function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SOURCE_ASOF, SOURCE_DAYS, AVAIL_DAYS_DATA) {
+  // 커밋 #81: 가용일수 24개 품목을 브랜드/카테고리/시리즈/제품 필터로 좁히기 위한 이름 기반 매핑표.
+  // require=전부 포함돼야 매칭, exclude=하나라도 포함되면 제외(예: "S8 Pro"↔"S8 Pro+" 구분).
+  // 창고 필터는 미적용(파일 수치가 이미 창고 합산값). 이름 기반 추정이라 오매칭 가능성 있음 — 발견 시 제보.
+  // (render() 첫 호출 전에 초기화돼야 하므로 boot() 최상단에 둔다 — 아래에 두면 TDZ 에러.)
+  const AVAIL_CLASSIFY = {
+    'S10 MaxV Ultra일반-W': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Ultra', '일반', '화이트'], exclude: ['직배수'] },
+    'S10 MaxV Ultra일반-B': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Ultra', '일반', '블랙'], exclude: ['직배수'] },
+    'S10 MaxV Ultra직배수-W': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Ultra', '직배수', '화이트'] },
+    'S10 MaxV Ultra직배수-B': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Ultra', '직배수', '블랙'] },
+    'S10 MaxV Slim 일반': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Slim', '일반'], exclude: ['직배수'] },
+    'S10 MaxV Slim 직배수': { brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Slim', '직배수'] },
+    'S9 MaxV Ultra일반-W': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Ultra', '일반', '화이트'], exclude: ['직배수'] },
+    'S9 MaxV Ultra일반-B': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Ultra', '일반', '블랙'], exclude: ['직배수'] },
+    'S9 MaxV Ultra직배수-W': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Ultra', '직배수', '화이트'] },
+    'S9 MaxV Ultra직배수-B': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Ultra', '직배수', '블랙'] },
+    'S9 MaxV Slim일반': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Slim', '일반'], exclude: ['직배수'] },
+    'S9 MaxV Slim직배수': { brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9 MaxV Slim', '직배수'] },
+    'H60': { brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60'], exclude: ['Pro', 'Hub'] },
+    'H60 Pro': { brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60', 'Pro'], exclude: ['Hub'] },
+    'H60 Hub+': { brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60', 'Hub+'] },
+    'H60 Hub Ultra': { brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60', 'Hub Ultra'] },
+    'Qrevo curv': { brand: '로보락', major: '로봇청소기', series: ['Qrevo Curv'], require: ['Qrevo Curv'] },
+    'S8 Pro': { brand: '로보락', major: '로봇청소기', series: ['S8'], require: ['S8 Pro'], exclude: ['Pro+', 'Ultra'] },
+    'S8 Pro+': { brand: '로보락', major: '로봇청소기', series: ['S8'], require: ['S8 Pro+'] },
+    'Z70 실버': { brand: '로보락', major: '로봇청소기', series: ['Saros Z70'], require: ['Saros Z70', '실버'], exclude: ['직배수'] },
+    'Z70 블랙': { brand: '로보락', major: '로봇청소기', series: ['Saros Z70'], require: ['Saros Z70', '블랙'] },
+    'Z70 직배수 실버': { brand: '로보락', major: '로봇청소기', series: ['Saros Z70'], require: ['Saros Z70', '직배수', '실버'] },
+    'BLUEVENT MUMU Plus': { brand: '블루벤트', major: '음식물처리기', series: ['MUMU Plus'], require: ['MUMU Plus'] },
+    'BLUEVENT ID': { brand: '블루벤트', major: '음식물처리기', series: ['ID', 'ID2'], require: ['BLUEVENT ID'] }, // "BLUEVENT ID2"도 부분문자열로 포함되므로 ID·ID2 둘 다 자연스럽게 매칭됨
+  };
+  function availItemMatchesFilters(spec, brands, categories, seriesArr, products) {
+    const cls = AVAIL_CLASSIFY[spec];
+    if (!cls) return true;
+    if (!inSel(cls.brand, brands)) return false;
+    if (!inSel(cls.major, categories)) return false;
+    if (!seriesArr.includes('전체') && !cls.series.some(s => seriesArr.includes(s))) return false;
+    if (!products.includes('전체')) {
+      const req = cls.require || [], exc = cls.exclude || [];
+      const matched = products.some(p => {
+        const hay = String(p);
+        return req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t));
+      });
+      if (!matched) return false;
+    }
+    return true;
+  }
+
   const items = TM_DATA.items;
   const days = TM_DATA.days;
   // 2026-08-27 추가(19차): 일자별 신규 입고 품목 분리 표시용. items와 같은 순서로 [tmIn, plIn] 쌍이
@@ -2461,14 +2511,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const ubusSideOn = activeSources.includes('UBUS');
       const srcTag = w => w === 'TM 자체창고' ? 'TM' : w;
       const tmSideTag = ['TM 자체창고', '3PL'].filter(w => activeSources.includes(w)).map(srcTag).join('+');
-      // 2026-08-26 갱신(9차): 이 알림의 대상 범위는 시리즈 필터와 무관하게 "카테고리"로만 판단한다 — 사용자
-      // 지시대로 matchesTm/matchesPinned 호출 시 series 인자를 실제 선택값 대신 ['전체']로 고정해서 시리즈
-      // 드롭다운 선택이 이 패널을 좁히지 않게 한다(브랜드/카테고리/창고 필터는 그대로 반영). 로봇청소기는
-      // S10/S9/S8만, Stand 청소기는 F25만 제외.
-      // 2026-08-26 갱신(14차, 사용자 지시): "구분"에서 ACC 포함을 선택해도 이 알림은 항상 본품(완제품) 기준으로만
-      // 집계한다 — 예전(10~11차)에는 ACC 포함 시 세정제·악세서리키트·더스트백 3종을 함께 보여줬으나, 이제는
-      // 구분 토글과 무관하게 완제품만 대상으로 하도록 되돌린다(아래 matchesTm/matchesPinned 호출의 kind 인자를
-      // kindMode 대신 '완제품'으로 고정 — kindMode==='전체'여도 ACC 품목은 항상 걸러진다).
+      // 2026-08-26 갱신(9차, 이제는 폐기됨 — 2026-09-02 커밋 #81에서 되돌림): 예전엔 이 알림의 대상 범위를
+      // 시리즈 필터와 무관하게 "카테고리"로만 판단했다(matchesTm/matchesPinned 호출 시 series 인자를 실제
+      // 선택값 대신 ['전체']로 고정, product 인자도 넘기지 않음).
+      // 2026-09-02(커밋 #81, 사용자 지시: "각 항목들 또는 신규 항목을 만들때도 반드시 기준이 되어야 할 부분은
+      // 창고선택 기준으로 선택한 브랜드, 카테고리, 시리즈, 제품에 따른 내용만 보여주도록 해줘 / 전체를 선택했으면
+      // 전체 품목이 다 보여야하고 ... 선택했으면 해당 선택 품목만 보여줘"): 브랜드/카테고리/창고뿐 아니라
+      // 시리즈·제품 필터도 그대로 반영하도록 변경 — 아래 matchesTm/matchesPinned 호출에 실제 series/product
+      // 선택값을 넘긴다. 단, "이 알림의 대상 범위"(로봇청소기는 S10/S9/S8만, Stand 청소기는 F25 제외) 자체는
+      // 여전히 유지 — 시리즈 필터로 그 범위를 넓힐 수는 없고(예: S7 선택 시 이 알림엔 여전히 안 뜸), 좁히는
+      // 방향으로만 동작(예: 시리즈=S10 선택 시 S9/S8은 빠지고 S10만 남음). "구분"(본품만/ACC 포함) 필터는
+      // 이전과 동일하게 항상 완제품 기준으로 고정(kind 인자 '완제품' 유지, kindMode 무시).
       const isRobotTarget = it => it.kind === '완제품' && it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8');
       const isStandTarget = it => it.kind === '완제품' && it.major === 'Stand 청소기' && it.series !== 'F25';
       const rows = [];
@@ -2477,7 +2530,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         items.forEach((it, i) => {
           const isTarget = isRobotTarget(it) || isStandTarget(it);
           if (!isTarget) return;
-          if (!matchesTm(it, brand, category, ['전체'], '완제품')) return;
+          if (!matchesTm(it, brand, category, series, '완제품', product)) return;
           if (isGraded(it.name) || isRefurb(it.name)) return;
           const qty = (tmSideOn ? dayArr[i][0] : 0) + (plSideOn ? dayArr[i][1] : 0);
           if (it.major === '로봇청소기') {
@@ -2492,7 +2545,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         PINNED.filter(u => u.source === 'UBUS').forEach(u => {
           const isTarget = isRobotTarget(u);
           if (!isTarget) return;
-          if (!matchesPinned(u, brand, category, ['전체'], '완제품')) return;
+          if (!matchesPinned(u, brand, category, series, '완제품', product)) return;
           if (isGraded(u.name) || isRefurb(u.name)) return;
           ubusCandidates.push({ name: u.name, series: u.series, qty: u.cur });
         });
@@ -2518,8 +2571,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       // 카테고리 필터가 "전체"이면 둘 다, 특정 카테고리만 선택돼 있으면 그 교집합만 나열한다.
       const ALERT_CATEGORIES = ['로봇청소기', 'Stand 청소기'];
       const alertScopeCats = category.includes('전체') ? ALERT_CATEGORIES : ALERT_CATEGORIES.filter(c => category.includes(c));
+      // 2026-09-02(커밋 #81): 시리즈 필터도 이제 이 알림을 실제로 좁히므로, 시리즈가 "전체"가 아니면 제목에도
+      // 반영해 어떤 조건으로 좁혀진 결과인지 한눈에 알 수 있게 한다(예: "주요 재고 알림 - 로봇청소기 · 시리즈: S10").
+      const seriesSuffix = series.includes('전체') ? '' : ` · 시리즈: ${series.join(', ')}`;
       document.getElementById('lsp-head').textContent = alertScopeCats.length
-        ? `주요 재고 알림 - ${alertScopeCats.join(', ')}`
+        ? `주요 재고 알림 - ${alertScopeCats.join(', ')}${seriesSuffix}`
         : '주요 재고 알림';
       const listHtml = rs => rs.length
         ? rs.map(r => `<div class="low-stock-row"><span class="lsr-nm">${dispName(r.name)}<span class="lsr-tag">${r.tag}</span></span><span class="lsr-val">${fmt(r.qty)}개</span></div>`).join('')
@@ -2541,6 +2597,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         </div>
       `;
     })();
+
+    // 2026-09-02(커밋 #81, 사용자 지시): 가용일수 패널도 브랜드/카테고리/시리즈/제품 필터에 따라 표시 대상이
+    // 좁혀지도록, boot()에서 한 번만 부르던 것을 render()가 호출될 때마다(=필터가 바뀔 때마다) 다시 그린다.
+    // (renderAvailDays는 함수 선언(hoisted)이라 이 시점에 파일상 아래에 정의돼 있어도 호출 가능하다.)
+    renderAvailDays(brand, category, series, product);
 
     // item bar list — 2026-08-26 갱신(12차): 예전엔 구분(완제품만/ACC 포함) 토글 하나로 단일 리스트의 대상만
     // 바꿨으나("ACC 포함" 시 완제품+ACC가 뒤섞인 top-20), 사용자 요청(레이아웃 목업 첨부)에 따라 [완제품]
@@ -3199,11 +3260,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // boot() 안으로 옮겼다 — 더 이상 인자를 넘기지 않는다.
   renderInboundSchedule();
   // 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤 제품인지를
-  // 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): "가용일수 기반 재고 알림" 패널. 입고예정
-  // 탭과 마찬가지로 필터·조회일자와 무관한 정적 주간 스냅샷이라 render()에 묶지 않고 여기서 한 번만
-  // 그린다(AVAIL_DAYS_DATA 자체가 매주 월요일 갱신되는 파일 스냅샷이며, 대시보드 안에서 날짜별 이력을
-  // 갖고 있지 않음).
-  renderAvailDays();
+  // 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): "가용일수 기반 재고 알림" 패널. AVAIL_DAYS_DATA
+  // 자체(총재고·일평균·가용일수 수치)는 조회일자와 무관한 정적 주간 스냅샷이지만, 2026-09-02(커밋 #81,
+  // 사용자 지시)부터 브랜드/카테고리/시리즈/제품 필터로 표시 대상은 좁혀지므로 위 render() 호출(line 3207)
+  // 안에서 이미 현재 필터값으로 한 번 그려졌다 — 여기서 인자 없이 다시 부르면 필터가 무시된 채(기본값
+  // ['전체']) 덮어써버리므로 별도로 다시 호출하지 않는다.
   document.getElementById('page-tabs').addEventListener('click', (e) => {
     const btn = e.target.closest('.page-tab');
     if (!btn) return;
@@ -3254,7 +3315,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   //    washerMatchKey로 매칭)까지 합산해서 "이 제품/창고=전체"를 봤을 때와 같은 총 재고를 계산한다.
   //  - "부족재고면 언제 채워지는지" — "주요 재고 알림"과 동일한 300/500/1000개 구간 기준을 재사용해
   //    (로봇청소기 S8/S9/S10, Stand 청소기[F25 제외] 매칭 품목에 한정) 회복 예상 시점을 계산한다.
-  // 필터가 없는 정적 데이터라 boot()에서 딱 한 번만 호출된다(재고 현황 탭처럼 render()에 묶지 않음).
+  // 입고예정 탭은 조회일자에 따라 renderInboundSchedule()이 다시 그려지지만(#f-date input 리스너 참고),
+  // 브랜드/카테고리/시리즈/제품 필터와는 무관한 별도 탭이라 render()에는 묶이지 않는다.
 
   // 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤 제품인지를
   // 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): AVAIL_DAYS_DATA(물류팀이 매주 월요일 집계하는
@@ -3265,7 +3327,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 알림 등)과 억지로 재매칭하면 grade(정상/B급/특가)·창고 구성 차이로 오히려 부정확해질 위험이 있다.
   // 예상 소진일 = 파일의 자료 기준일(AVAIL_DAYS_DATA.asOf) + 가용일수(반올림)로 계산 — 실제 "오늘" 날짜가
   // 아니라 이 지표가 산출된 기준일에서부터 며칠 뒤인지를 보여준다(자료 자체가 매주 월요일 스냅샷이므로).
-  function renderAvailDays() {
+  function renderAvailDays(brands, categories, seriesArr, products) {
+    brands = brands || ['전체']; categories = categories || ['전체']; seriesArr = seriesArr || ['전체']; products = products || ['전체'];
     const root = document.getElementById('avail-days-tiers');
     const weekEl = document.getElementById('adp-week');
     if (!root) return;
@@ -3275,7 +3338,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       if (weekEl) weekEl.textContent = '';
       return;
     }
-    if (weekEl) weekEl.textContent = `(${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''})`;
+    const isNarrowed = !brands.includes('전체') || !categories.includes('전체') || !seriesArr.includes('전체') || !products.includes('전체');
+    const filteredItems = data.items.filter(it => availItemMatchesFilters(it.spec, brands, categories, seriesArr, products));
+    if (weekEl) weekEl.textContent = `(${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''}${isNarrowed ? ` · 필터 적용 ${filteredItems.length}/${data.items.length}개` : ''})`;
     const fmtNum = n => (n == null ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: 1 }));
     const fmtDays = n => (n == null ? '-' : fmtNum(n) + '일');
     const pad2 = n => String(n).padStart(2, '0');
@@ -3286,7 +3351,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const d = new Date(asOfUTC + Math.round(days) * 86400000);
       return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
     }
-    const rows = data.items.map(it => ({ ...it, projected: projectedDate(it.availDaysCur) }));
+    if (!filteredItems.length) {
+      root.innerHTML = '<div class="low-stock-empty">현재 선택된 브랜드·카테고리·시리즈·제품 조건에 해당하는 품목이 없습니다.</div>';
+      return;
+    }
+    const rows = filteredItems.map(it => ({ ...it, projected: projectedDate(it.availDaysCur) }));
     const danger = rows.filter(r => r.availDaysCur != null && r.availDaysCur < 7).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const warn = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 7 && r.availDaysCur < 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const safe = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
