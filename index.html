@@ -1318,16 +1318,28 @@
         <div class="explorer-col">
           <!-- 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤
                제품인지를 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): 물류팀이 매주 월요일
-               집계하는 실제 출하 기준 "가용일수" 데이터를 별도 알림 패널로 추가. 자료 자체(총재고·일평균·
-               가용일수 수치)는 조회일자와 무관하게 항상 최신 파일(24개 핵심 본품) 기준으로 고정이지만,
-               2026-09-02(커밋 #81, 사용자 지시)부터는 브랜드·카테고리·시리즈·제품 필터로 "어떤 품목을
-               보여줄지"는 좁혀진다(render()에서 renderAvailDays(brand, category, series, product) 호출 —
-               이름 기반 추정 매칭, AVAIL_CLASSIFY 표 참고). 창고 필터는 파일 수치가 이미 창고 합산값이라
-               적용하지 않는다. 기존 "주요 재고 알림"(수량 기반)은 아래 그대로 유지하고 이 패널을 그 위에
-               배치한다(사용자 확인 사항). -->
+               집계하는 실제 출하 기준 "가용일수" 데이터를 별도 알림 패널로 추가. 2026-09-02(커밋 #81,
+               사용자 지시)부터는 브랜드·카테고리·시리즈·제품 필터로 "어떤 품목을 보여줄지"는 좁혀진다
+               (render()에서 renderAvailDays(brand, category, series, product) 호출 — 이름 기반 추정 매칭,
+               AVAIL_CLASSIFY 표 참고). 창고 필터는 적용하지 않는다(로봇청소기는 TM+3PL+수입창고+UBUS
+               파트너 재고를 이미 항상 전부 합산해서 계산하기 때문).
+               2026-09-03 변경(사용자 지시, 커밋 #84): "총재고를 파일 수치 그대로 쓰지 말고, 계속 갱신되는
+               재고 데이터 기준으로 매번 다시 계산해라"(8/31 기준 파일 수치를 9/1 이후에도 그대로 쓰면
+               실제 재고와 달라진다는 지적) — 총재고(분자)는 더 이상 물류팀 파일의 curStock을 쓰지 않고
+              「[본품] 품목별 잔여재고」/「입고예정」탭과 동일한 방식(TM+3PL 최신 일자 + 수입창고 + 로봇청소기는
+               UBUS 파트너 재고까지 robotFullKey로 매칭·합산)으로 매번 실시간 재계산한다(liveStockForAvailClass,
+               아래 AVAIL_CLASSIFY 정의부 바로 아래 참고). 일평균 출하량(분모)은 대시보드에 별도 실시간 출하
+               데이터가 없어 물류팀 파일 값(주간 집계)을 그대로 쓴다 — 가용일수 산식(총재고÷일평균) 자체는
+               그대로 유지하되 분자만 "항상 최신"으로 바뀐 것. 예상 소진일의 기준일도 파일의 asOf(고정
+               8/31)가 아니라 대시보드 상단 기준일(latestAsOf, 데이터가 갱신될 때마다 자동으로 따라감)로
+               변경했다. 전주대비 ▲/▼(wowChange)는 물류팀이 WW34→WW35 파일을 비교해 이미 계산해 둔 값이라
+               그대로 유지(대시보드가 재계산할 수 있는 실시간 이력이 아니므로) — 그래서 총재고·가용일수는
+               실시간인데 ▲/▼ 증감폭만 지난 물류팀 주간 비교 기준이라는 점을 안내 문구·툴팁에 명시한다.
+               기존 "주요 재고 알림"(수량 기반)은 아래 그대로 유지하고 이 패널을 그 위에 배치한다(사용자
+               확인 사항). -->
           <div class="low-stock-panel" id="avail-days-panel">
             <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-            <p class="lsp-sub">매주 월요일 물류팀 집계(24개 핵심 본품) · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 전주대비 가용일수 증감(일) — ▲여유 늘어남, ▼주의(더 빨리 소진)</p>
+            <p class="lsp-sub">총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의)</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
           <div class="low-stock-panel" id="low-stock-panel">
@@ -1416,6 +1428,45 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       if (!matched) return false;
     }
     return true;
+  }
+  // 2026-09-03 추가(사용자 지시, 커밋 #84): "가용일수" 패널의 총재고를 물류팀 파일의 정적 curStock 대신
+  // 매번 실시간으로 다시 계산한다. AVAIL_CLASSIFY의 brand/major/series/require/exclude로 TM_DATA.items 중
+  // 해당 스펙에 속하는 완제품(등급 재고·리퍼 제외)을 전부 찾아 그 최신 일자(TM+3PL) + 수입창고(imp)를
+  // 더하고, 로봇청소기는 「[본품] 품목별 잔여재고」·「입고예정」탭에서 이미 검증된 robotFullKey 매칭으로
+  // UBUS 파트너 재고까지 합산한다("BLUEVENT ID"처럼 한 스펙에 여러 TM 품목(ID+ID2)이 매칭되는 경우도
+  // 전부 합산 — 파일의 curStock 자체가 원래 그렇게 합쳐진 값이었으므로 동일한 집계 방식을 따른다).
+  // 이 함수는 호출 시점(render() 안에서 매번 호출)에만 items/days/PINNED/robotFullKey 등을 참조하므로,
+  // 함수 선언 위치가 그 값들의 실제 대입(아래 const 문)보다 앞서 있어도 문제없다(함수 선언은 호이스팅되고,
+  // 내부 참조는 "호출되는 시점"에 평가되기 때문 — 커밋 #81에서 겪은 AVAIL_CLASSIFY TDZ 버그와는 다른 상황).
+  // 매칭되는 품목이 하나도 없으면(정의 오류 등 예외 상황에 대한 안전장치) null을 반환해 호출부가 파일의
+  // curStock으로 폴백할 수 있게 한다 — 정상적으로는 24개 스펙 모두 최소 1개 이상 매칭된다(배포 전 검증됨).
+  function liveStockForAvailClass(cls) {
+    if (!cls) return null;
+    let total = 0;
+    let matchedAny = false;
+    const latest = days[String(maxDay)] || [];
+    items.forEach((it, i) => {
+      if (it.kind !== '완제품') return;
+      if (it.brand !== cls.brand) return;
+      if (it.major !== cls.major) return;
+      if (!cls.series.includes(it.series)) return;
+      if (isGraded(it.name) || isRefurb(it.name)) return;
+      const req = cls.require || [], exc = cls.exclude || [];
+      if (!req.every(t => it.name.includes(t))) return;
+      if (exc.some(t => it.name.includes(t))) return;
+      matchedAny = true;
+      const day = latest[i] || [0, 0];
+      total += (day[0] || 0) + (day[1] || 0) + (it.imp || 0);
+      if (cls.major === '로봇청소기') {
+        const key = robotFullKey(it.name, it.series);
+        if (key != null) {
+          PINNED.forEach(u => {
+            if (u.source === 'UBUS' && u.major === '로봇청소기' && robotFullKey(u.name, u.series) === key) total += u.cur;
+          });
+        }
+      }
+    });
+    return matchedAny ? total : null;
   }
 
   const items = TM_DATA.items;
@@ -3334,13 +3385,20 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
 
   // 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤 제품인지를
   // 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): AVAIL_DAYS_DATA(물류팀이 매주 월요일 집계하는
-  // 24개 핵심 본품의 총재고·일평균 출하량·가용일수 WW34/WW35/전주대비)를 그대로 읽어 "부족(7일 미만)/
-  // 주의(7~14일)/여유(14일 이상)" 3구간으로 나눠 보여준다(구간 기준은 사용자 확인 사항). TM/UBUS/3PL 등
-  // 대시보드 다른 데이터와 재계산·재매칭하지 않고 파일 자체의 수치를 그대로 신뢰해서 쓴다 — 이 파일 자체가
-  // 물류팀이 여러 창고를 이미 합산해 낸 "총재고" 기준이라, 대시보드의 다른 소스별 합산 로직(주요 재고
-  // 알림 등)과 억지로 재매칭하면 grade(정상/B급/특가)·창고 구성 차이로 오히려 부정확해질 위험이 있다.
-  // 예상 소진일 = 파일의 자료 기준일(AVAIL_DAYS_DATA.asOf) + 가용일수(반올림)로 계산 — 실제 "오늘" 날짜가
-  // 아니라 이 지표가 산출된 기준일에서부터 며칠 뒤인지를 보여준다(자료 자체가 매주 월요일 스냅샷이므로).
+  // 24개 핵심 본품의 총재고·일평균 출하량·가용일수 WW34/WW35/전주대비)를 읽어 "부족(7일 미만)/주의(7~14일)/
+  // 여유(14일 이상)" 3구간으로 나눠 보여준다(구간 기준은 사용자 확인 사항).
+  // 2026-09-03 변경(사용자 지시, 커밋 #84): "그 파일 숫자(8/31 기준)를 9/1 이후에도 그대로 쓰면 안 된다,
+  // 산식만 그대로 쓰고 총재고는 계속 갱신되는 재고 파일 기준으로 다시 계산해라" — 총재고(curStock)는 더
+  // 이상 파일 값을 신뢰하지 않고 매번 liveStockForAvailClass(AVAIL_CLASSIFY[spec])로 그 시점의 실제
+  // TM+3PL+수입창고(+로봇청소기는 UBUS 파트너) 합산 재고를 다시 계산한다. 일평균 출하량(dailyAvg)은
+  // 대시보드에 실시간 출하 데이터가 없어 물류팀 파일 값을 그대로 쓰고, 가용일수 = 실시간 총재고 ÷ 그
+  // 일평균으로 다시 계산한다. 매칭되는 TM 품목이 하나도 없는 예외적인 경우에만(정상적으로는 발생하지
+  // 않음, 배포 전 24개 스펙 전부 검증됨) 파일의 curStock으로 안전하게 폴백한다.
+  // 예상 소진일 = "상단 기준일"(latestAsOf, 데이터가 갱신될 때마다 자동으로 따라감) + 가용일수(반올림) —
+  // 더 이상 파일의 고정 asOf(예: 8/31)를 기준으로 삼지 않는다(총재고 자체가 실시간이 됐으므로).
+  // 전주대비 ▲/▼(wowChange)는 물류팀이 WW34→WW35 파일을 비교해 계산해 둔 값 그대로 유지한다(대시보드가
+  // 재계산할 수 있는 실시간 주간 이력이 없으므로) — 총재고·가용일수는 실시간, ▲/▼ 증감폭만 물류팀 주간
+  // 비교 기준이라는 점이 다르다는 것을 패널 설명 문구·툴팁에 명시해 뒀다.
   function renderAvailDays(brands, categories, seriesArr, products) {
     brands = brands || ['전체']; categories = categories || ['전체']; seriesArr = seriesArr || ['전체']; products = products || ['전체'];
     const root = document.getElementById('avail-days-tiers');
@@ -3354,11 +3412,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     }
     const isNarrowed = !brands.includes('전체') || !categories.includes('전체') || !seriesArr.includes('전체') || !products.includes('전체');
     const filteredItems = data.items.filter(it => availItemMatchesFilters(it.spec, brands, categories, seriesArr, products));
-    if (weekEl) weekEl.textContent = `(${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''}${isNarrowed ? ` · 필터 적용 ${filteredItems.length}/${data.items.length}개` : ''})`;
+    if (weekEl) weekEl.textContent = `(총재고 실시간(${latestAsOf}) · 일평균 ${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''}${isNarrowed ? ` · 필터 적용 ${filteredItems.length}/${data.items.length}개` : ''})`;
     const fmtNum = n => (n == null ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: 1 }));
     const fmtDays = n => (n == null ? '-' : fmtNum(n) + '일');
     const pad2 = n => String(n).padStart(2, '0');
-    const [asOfY, asOfM, asOfD] = (data.asOf || '').split('-').map(Number);
+    const [asOfY, asOfM, asOfD] = (latestAsOf || '').split('-').map(Number);
     const asOfUTC = (asOfY && asOfM && asOfD) ? Date.UTC(asOfY, asOfM - 1, asOfD) : null;
     function projectedDate(days) {
       if (days == null || asOfUTC == null) return '-';
@@ -3369,14 +3427,22 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       root.innerHTML = '<div class="low-stock-empty">현재 선택된 브랜드·카테고리·시리즈·제품 조건에 해당하는 품목이 없습니다.</div>';
       return;
     }
-    const rows = filteredItems.map(it => ({ ...it, projected: projectedDate(it.availDaysCur) }));
+    // 2026-09-03 변경(커밋 #84): 총재고는 파일의 it.curStock이 아니라 매번 liveStockForAvailClass로 다시
+    // 계산한 실시간 값을 쓴다(매칭 실패 시에만 파일 값으로 폴백). 가용일수도 이 실시간 총재고 ÷ 파일의
+    // 일평균 출하량(dailyAvg)으로 다시 계산 — 파일이 준 availDaysCur(8/31 기준 고정값)는 더 이상 쓰지 않는다.
+    const rows = filteredItems.map(it => {
+      const liveCur = liveStockForAvailClass(AVAIL_CLASSIFY[it.spec]);
+      const curStock = liveCur != null ? liveCur : it.curStock;
+      const availDaysCur = (it.dailyAvg != null && it.dailyAvg > 0) ? curStock / it.dailyAvg : null;
+      return { ...it, curStock, availDaysCur, projected: projectedDate(availDaysCur) };
+    });
     const danger = rows.filter(r => r.availDaysCur != null && r.availDaysCur < 7).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const warn = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 7 && r.availDaysCur < 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const safe = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const na = rows.filter(r => r.availDaysCur == null);
     function rowHtml(r) {
       const wowHtml = r.wowChange == null ? '' :
-        `<span class="avail-wow ${r.wowChange >= 0 ? 'up' : 'down'}" title="전주(${data.prevWeek || ''}) 대비 가용일수 ${r.wowChange >= 0 ? '+' : ''}${fmtNum(r.wowChange)}일 ${r.wowChange >= 0 ? '(재고 여유 개선)' : '(재고 소진 가속 — 주의)'}">${r.wowChange >= 0 ? '▲' : '▼'}${fmtNum(Math.abs(r.wowChange))}</span>`;
+        `<span class="avail-wow ${r.wowChange >= 0 ? 'up' : 'down'}" title="물류팀 주간 파일 기준(${data.prevWeek || ''}→${data.week || ''}) 가용일수 ${r.wowChange >= 0 ? '+' : ''}${fmtNum(r.wowChange)}일 ${r.wowChange >= 0 ? '(재고 여유 개선)' : '(재고 소진 가속 — 주의)'} — 실시간 총재고 기준 증감이 아님">${r.wowChange >= 0 ? '▲' : '▼'}${fmtNum(Math.abs(r.wowChange))}</span>`;
       return `<div class="avail-row">
         <div class="avail-row-top"><span class="avail-nm">${dispName(r.label)}</span><span class="avail-days-val">${fmtDays(r.availDaysCur)}${wowHtml}</span></div>
         <div class="avail-row-sub"><span>총재고 ${fmtNum(r.curStock)}개</span><span>일평균 ${fmtNum(r.dailyAvg)}개</span><span>예상 소진일 ${r.projected}</span></div>
