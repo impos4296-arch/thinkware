@@ -440,8 +440,20 @@
     white-space: nowrap;
   }
   .panel-toggle-btn:hover { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  /* 2026-09-03 추가(사용자 지시: "항목별 설명문구는 처음부터 화면상 보여주니 너무 자리를 많이 차지해
+     복잡하게 보여서 항목 설명이라는 버튼을 클릭하면 해당 항목에 대한 설명을 볼수 있도록 추가") — 창고 안내
+     문구(ubus-pinned-note 등), 가용일수/주요재고 알림의 lsp-sub, 이번 달 입고 수량 안내문 등 길게 늘어진
+     설명 문단들을 기본은 숨기고 "항목 설명" 버튼을 눌러야 펼쳐 보이도록 한다(펼침 상태는 섹션별로
+     localStorage에 저장 — setupDescToggle() 참고). 열린 상태는 .panel-toggle-btn.active로 강조. */
+  .panel-toggle-btn.active { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .section-h3-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .section-h3-row h3 { margin: 0; }
+  .lsp-head-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 0 0 4px; }
+  .lsp-head-row .lsp-head { margin: 0; }
   .esum-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .esum-head .filter-scope-note { flex: 1; margin: 0; }
+  .esum-notes-toggle-row { margin: 6px 0 0; }
+  .esum-notes-body { margin-top: 8px; }
   .explorer-summary {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
@@ -503,7 +515,20 @@
   }
   @media (max-width: 900px) { .explorer-body { grid-template-columns: 1fr; } }
 
-  .explorer-col h3 {
+  /* 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 2번 — "이번달 입고수량"과 "주요재고 알림"을
+     왼쪽 칸으로 옮겨 그 안에서 좌우 항목 비율에 맞게 배치") — 이번 달 입고 수량(막대그래프, 품목명이 길어
+     폭이 더 필요)과 주요 재고 알림(간단한 티어 목록)을 왼쪽 칸 안에서 나란히 배치하되, 폭 비율은 50/50이
+     아니라 내용 비율에 맞춰 1.3:1로 준다. 화면이 좁아지면(explorer-body와 같은 기준, 900px) 세로로 쌓는다. */
+  .side-by-side-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  @media (max-width: 900px) { .side-by-side-row { grid-template-columns: 1fr; gap: 16px; } }
+  .side-by-side-row .low-stock-panel { margin: 0; }
+
+  .explorer-col h3, .section-h3 {
     font-family: "Gothic A1", sans-serif;
     font-size: 14.5px;
     font-weight: 700;
@@ -511,6 +536,28 @@
     color: var(--text-secondary);
   }
 
+  /* 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 품목별 잔여재고를 상위 N개로 자르지 않고
+     전체를 보여주되, 스크롤바로 기본 10개 정도만 보이게 하고 표시 개수(10/50/100)를 선택할 수 있게).
+     제목 줄에 표시 개수 선택 버튼을 나란히 두고, 실제 막대 목록(#item-bars)만 별도 스크롤 컨테이너로 감싸
+     기본 높이를 대략 10행 정도로 제한한다(범례(.legend-sticky)는 이 스크롤 밖에 그대로 둬 항상 보이게 함). */
+  .item-list-head-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 0 0 12px; }
+  .item-list-head-row h3 { margin: 0; }
+  .item-limit-select { display:flex; align-items:center; gap:6px; }
+  .item-limit-select .ils-label { font-size: 11px; color: var(--text-muted); }
+  .ils-btn {
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .ils-btn:hover { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .ils-btn.active { background: var(--accent-3pl); color: #fff; border-color: var(--accent-3pl); }
+  .item-bars-scroll { max-height: 404px; overflow-y: auto; padding-right: 6px; }
   .item-bars { display: flex; flex-direction: column; gap: 12px; }
   .item-bar-row .top { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; margin-bottom:4px; }
   .item-bar-row .top .nm { color: var(--text-primary); }
@@ -649,9 +696,13 @@
   .daily-inbound-newbanner b { color: var(--newprod); font-weight:800; }
   .daily-inbound-empty { font-size: 12px; color: var(--text-muted); padding: 4px 0; }
 
-  .trend-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 10px; background: var(--surface-2); }
-  .trend-wrap.chart-collapsed { padding-bottom: 14px; }
-  .trend-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:8px; }
+  /* 2026-09-03 갱신(사용자 지시: "대쉬보드 항목별 위치 조정" 1번 — 선택구간 재고추이를 창고 타일 요약
+     바로 아래로 옮기면서 "그래프 항목 높이를 적당히 줄여달라") — 패딩·SVG 높이를 줄여 더 컴팩트하게 만들었다
+     (아래 svg.trend-svg 높이 변경과 renderTrend()의 H 상수(120→84)를 반드시 함께 맞춰야 좌표 계산이 깨지지
+     않는다 — viewBox="0 0 400 84"도 같이 갱신). */
+  .trend-wrap { border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px 8px; background: var(--surface-2); }
+  .trend-wrap.chart-collapsed { padding-bottom: 12px; }
+  .trend-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:6px; }
   .trend-head-info { display:flex; align-items:baseline; gap:10px; }
   .trend-head .lbl { font-size:12px; color:var(--text-muted); }
   .trend-head .now { font-family:"Gothic A1",sans-serif; font-weight:800; font-size:16px; font-variant-numeric: tabular-nums; }
@@ -660,7 +711,7 @@
      가장 가까운 날짜의 값을 툴팁으로 보여주기 위한 컨테이너/가이드선/점/툴팁 스타일. */
   .trend-chart-area { position: relative; }
   .trend-wrap.chart-collapsed .trend-chart-area { display: none; }
-  svg.trend-svg { width:100%; height:120px; display:block; overflow: visible; cursor: crosshair; }
+  svg.trend-svg { width:100%; height:84px; display:block; overflow: visible; cursor: crosshair; }
   .trend-svg .grid-line { stroke: var(--border); stroke-width: 1; }
   .trend-svg .hover-guide { stroke: var(--text-muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; pointer-events: none; }
   .trend-svg .hover-dot { fill: var(--surface-2); stroke: var(--accent-3pl); stroke-width: 2; opacity: 0; pointer-events: none; }
@@ -1267,32 +1318,80 @@
         <button type="button" class="panel-toggle-btn" id="esum-toggle-btn">간략히 보기</button>
       </div>
       <div class="explorer-summary" id="esum"></div>
-      <p class="ubus-pinned-note">UBUS·위니온·세탁기 재고는 매일(세탁기는 주 2회) 올라오는 파일을 그날그날 누적한 값이라, 조회일자를 바꾸면 그 값도 함께 바뀝니다(단, 처음 데이터를 올리기 시작한 날짜 이전은 선택할 수 없고, 데이터가 없는 날은 가장 가까운 이전 날짜 값을 대신 보여줍니다). 수입창고는 통관이 완료되어 국내 창고로 실입고될 예정인 재고이며, 아직 일자별 이력이 없어 최신 스냅샷 값으로 고정 표시됩니다. <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
-      <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
-           실제 보유 재고가 아닌 입고예정 탭 기준 예상 수치이므로 점선 테두리로 구분 표시된다.
-           29차 갱신: "입고예정 수량은 입고시기가 당월에 해당되는 수량만 보여줘"(사용자 지시) — 입고예정
-           탭은 전체 스케줄(이번달+다음달+미정)을 다 보여주지만, 이 재고 현황 탭의 타일/합계는 "당월(이번
-           달)" 입고 예정분만 반영한다. "당월"은 재고 현황 탭의 조회일자 슬라이더와 무관하게("날짜와
-           상관없이", 사용자 지시) 실제 오늘 날짜(NOW) 기준으로 판단한다.
-           31차 갱신(사용자 지시): "전체"를 문자 그대로의 전체(입고예정 포함)로 재정의 — 최초 화면 진입 시에는
-           "전체" 대신 입고예정을 제외한 실창고 6개가 개별 선택된 상태로 시작해(합계·타일 강조는 예전과 동일),
-           창고 목록에서 "전체"를 다시 선택했을 때만(또는 "입고예정"을 다른 창고와 함께 명시적으로 선택했을
-           때) 입고예정(당월) 수량이 "선택 조건 합계"와 [본품]/[ACC] 품목별 목록에 더해진다. 다만 일자별 이력이
-           없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다. -->
-      <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 상단 기준일이 속한 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다른 달·미정 물량은 제외 · 조회일자 슬라이더와는 무관). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
-      <!-- 2026-08-31 추가(사용자 지시: "세탁기는 주 2회, 입고예정은 주 1회 — 해당 항목은 별도 주석이
-           필요할거 같아"): 창고마다 원본 파일 갱신 주기가 달라 같은 조회일자를 봐도 최신성이 다르다는 점을
-           위 설명 문단들 속에 섞어두지 않고, 갱신 주기만 모아 한눈에 보이도록 별도 문단으로 분리했다. -->
-      <p class="ubus-pinned-note update-freq-note">갱신 주기 — TM 자체창고·3PL·UBUS·위니온: 파일이 올라올 때마다(대체로 매일) · 세탁기: 주 2회 · 입고예정·가용일수: 주 1회(매주 월요일) · 수입창고·미발주/미출하: 비정기(파일이 새로 올라올 때만).</p>
+
+      <!-- 2026-09-03 갱신(사용자 지시: "대쉬보드 항목별 위치 조정" 1번 — "선택구간 재고추이는 첨부한 이미지와
+           같이 화살표로 표기한 위치로 이동(대신 그래프 항목 높이를 적당히 줄여주고 그래프 숨기기 기능
+           유지)") — 예전엔 왼쪽 칸의 [본품] 품목별 잔여재고/NEW 박스 아래(스크롤을 꽤 내려야 보이는 위치)에
+           있었는데, 창고 타일 요약(esum) 바로 아래·전체 폭으로 옮기고 높이도 줄였다(SVG 높이 120→84px,
+           패딩 축소 — 자세한 내용은 위 CSS .trend-wrap/svg.trend-svg 주석과 아래 renderTrend()의 H 상수
+           주석 참고). 그래프 숨기기 토글(#trend-toggle-btn/setTrendCollapsed(), localStorage:
+           tw_trend_collapsed)은 완전히 그대로 유지 — id로만 참조되므로 위치만 옮겨도 JS 로직 변경이 필요
+           없다. 이동하면서 h3 제목이 더 이상 .explorer-col 안에 있지 않아 제목 글꼴 스타일이 빠지지 않도록
+           class="section-h3"를 추가했다(위 CSS ".explorer-col h3, .section-h3" 참고). -->
+      <h3 class="section-h3" style="margin-top:14px;" id="trend-head-title">선택 구간 재고 추이 (전체 창고 합계)</h3>
+      <div class="trend-wrap" id="trend-wrap">
+        <div class="trend-head">
+          <span class="trend-head-info"><span class="lbl">선택한 조건의 일별 합계 추이</span><span class="now" id="trend-now">-</span></span>
+          <button type="button" class="panel-toggle-btn chart-toggle-btn" id="trend-toggle-btn">그래프 감추기</button>
+        </div>
+        <div class="trend-chart-area" id="trend-chart-area">
+          <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 84" preserveAspectRatio="none"></svg>
+          <div class="trend-tooltip" id="trend-tooltip" hidden></div>
+        </div>
+      </div>
+
+      <!-- 2026-09-03 갱신(사용자 지시: "항목별 설명문구는 처음부터 화면상 보여주니 너무 자리를 많이
+           차지해 복잡하게 보여서 항목 설명이라는 버튼을 클릭하면 해당 항목에 대한 설명을 볼수 있도록
+           추가") — 아래 창고 안내 문구 3개(UBUS/입고예정/갱신주기)는 예전엔 항상 펼쳐져 있어 자리를 많이
+           차지했다. 이제 기본은 접혀 있고 "항목 설명" 버튼을 눌러야 펼쳐진다(펼침 상태는 섹션별로
+           localStorage에 저장 — 아래 boot() 쪽 setupDescToggle() 참고). -->
+      <div class="esum-notes-toggle-row">
+        <button type="button" class="panel-toggle-btn desc-toggle-btn" id="esum-notes-toggle-btn">항목 설명</button>
+      </div>
+      <div class="esum-notes-body" id="esum-notes-body" hidden>
+        <p class="ubus-pinned-note">UBUS·위니온·세탁기 재고는 매일(세탁기는 주 2회) 올라오는 파일을 그날그날 누적한 값이라, 조회일자를 바꾸면 그 값도 함께 바뀝니다(단, 처음 데이터를 올리기 시작한 날짜 이전은 선택할 수 없고, 데이터가 없는 날은 가장 가까운 이전 날짜 값을 대신 보여줍니다). 수입창고는 통관이 완료되어 국내 창고로 실입고될 예정인 재고이며, 아직 일자별 이력이 없어 최신 스냅샷 값으로 고정 표시됩니다. <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
+        <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
+             실제 보유 재고가 아닌 입고예정 탭 기준 예상 수치이므로 점선 테두리로 구분 표시된다.
+             29차 갱신: "입고예정 수량은 입고시기가 당월에 해당되는 수량만 보여줘"(사용자 지시) — 입고예정
+             탭은 전체 스케줄(이번달+다음달+미정)을 다 보여주지만, 이 재고 현황 탭의 타일/합계는 "당월(이번
+             달)" 입고 예정분만 반영한다. "당월"은 재고 현황 탭의 조회일자 슬라이더와 무관하게("날짜와
+             상관없이", 사용자 지시) 실제 오늘 날짜(NOW) 기준으로 판단한다.
+             31차 갱신(사용자 지시): "전체"를 문자 그대로의 전체(입고예정 포함)로 재정의 — 최초 화면 진입 시에는
+             "전체" 대신 입고예정을 제외한 실창고 6개가 개별 선택된 상태로 시작해(합계·타일 강조는 예전과 동일),
+             창고 목록에서 "전체"를 다시 선택했을 때만(또는 "입고예정"을 다른 창고와 함께 명시적으로 선택했을
+             때) 입고예정(당월) 수량이 "선택 조건 합계"와 [본품]/[ACC] 품목별 목록에 더해진다. 다만 일자별 이력이
+             없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다. -->
+        <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 상단 기준일이 속한 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다른 달·미정 물량은 제외 · 조회일자 슬라이더와는 무관). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
+        <!-- 2026-08-31 추가(사용자 지시: "세탁기는 주 2회, 입고예정은 주 1회 — 해당 항목은 별도 주석이
+             필요할거 같아"): 창고마다 원본 파일 갱신 주기가 달라 같은 조회일자를 봐도 최신성이 다르다는 점을
+             위 설명 문단들 속에 섞어두지 않고, 갱신 주기만 모아 한눈에 보이도록 별도 문단으로 분리했다. -->
+        <p class="ubus-pinned-note update-freq-note">갱신 주기 — TM 자체창고·3PL·UBUS·위니온: 파일이 올라올 때마다(대체로 매일) · 세탁기: 주 2회 · 입고예정·가용일수: 주 1회(매주 월요일) · 수입창고·미발주/미출하: 비정기(파일이 새로 올라올 때만).</p>
+      </div>
 
       <div class="explorer-body">
         <div class="explorer-col">
-          <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
+          <div class="item-list-head-row">
+            <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
+            <!-- 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 전체 품목을 상위순서 유지한
+                 채 모두 보여주되, 기본은 스크롤바로 10개만 보이게 하고 10/50/100개 중 표시 개수를 선택하는
+                 기능 추가). 클릭 핸들러/기본값 복원은 boot() 쪽 아래 참고(localStorage: tw_item_limit). -->
+            <div class="item-limit-select" id="item-limit-select">
+              <span class="ils-label">표시 개수</span>
+              <button type="button" class="ils-btn" data-limit="10">10개</button>
+              <button type="button" class="ils-btn" data-limit="50">50개</button>
+              <button type="button" class="ils-btn" data-limit="100">100개</button>
+            </div>
+          </div>
           <!-- 2026-08-28 갱신(25차, 사용자 지시): 범례를 item-bars "위"로 이동 + sticky 적용
-               (자세한 설명은 위 CSS .legend-sticky-wrap/.legend-sticky 주석 참고). -->
+               (자세한 설명은 위 CSS .legend-sticky-wrap/.legend-sticky 주석 참고).
+               2026-09-03 갱신: item-bars를 .item-bars-scroll로 한 번 더 감싸 기본 높이를 대략 10행으로
+               제한하고 스크롤로 나머지를 보게 했다(범례는 스크롤 밖에 그대로 둬 항상 보이게 함 — 위 CSS
+               .item-bars-scroll 주석 참고). -->
           <div class="legend-sticky-wrap">
             <div class="legend-mini legend-sticky" id="item-legend"></div>
-            <div class="item-bars" id="item-bars"></div>
+            <div class="item-bars-scroll" id="item-bars-scroll">
+              <div class="item-bars" id="item-bars"></div>
+            </div>
           </div>
           <div id="acc-item-block" style="display:none;">
             <h3 style="margin-top:20px;" id="acc-item-list-head">[ACC] 품목별 잔여재고</h3>
@@ -1301,9 +1400,8 @@
               <div class="item-bars" id="acc-item-bars"></div>
             </div>
           </div>
-          <!-- 2026-08-27 갱신(23차, 사용자 지시): "신규 입고품목"(daily-inbound-box)과 "선택구간
-               재고추이"(trend-head-title/trend-wrap)를 오른쪽 칸에서 이 왼쪽 칸의 [본품] 품목별
-               잔여재고 목록 바로 아래로 옮겼다 — 두 블록 다 id로만 참조되므로 JS 로직 변경 없이
+          <!-- 2026-08-27 갱신(23차, 사용자 지시): "신규 입고품목"(daily-inbound-box)을 오른쪽 칸에서 이
+               왼쪽 칸의 [본품] 품목별 잔여재고 목록 바로 아래로 옮겼다 — id로만 참조되므로 JS 로직 변경 없이
                HTML 위치만 이동하면 된다.
                2026-08-28 갱신(25차, 사용자 지시): 위 목록과 아래 NEW 박스 사이 간격이 너무 붙어있다는
                피드백에 따라 daily-inbound-box 상단 여백을 늘렸다(CSS margin 참고). -->
@@ -1319,15 +1417,33 @@
             <div class="daily-inbound-list" id="daily-inbound-list"></div>
             <div class="daily-inbound-newbanner" id="daily-inbound-newbanner" style="display:none;"></div>
           </div>
-          <h3 style="margin-top:20px;" id="trend-head-title">선택 구간 재고 추이 (전체 창고 합계)</h3>
-          <div class="trend-wrap" id="trend-wrap">
-            <div class="trend-head">
-              <span class="trend-head-info"><span class="lbl">선택한 조건의 일별 합계 추이</span><span class="now" id="trend-now">-</span></span>
-              <button type="button" class="panel-toggle-btn chart-toggle-btn" id="trend-toggle-btn">그래프 감추기</button>
+
+          <!-- 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 2번 — "이번달 입고수량과 주요재고
+               알림 왼쪽으로 좌우 항목 비율에 맞도록 구성") — 오른쪽 칸에 있던 "제품별 이번 달 입고 수량"과
+               "주요 재고 알림"(가용일수 알림과는 별개)을 이 왼쪽 칸으로 옮기고, 그 안에서 좌우로 나란히
+               배치했다(비율은 위 CSS .side-by-side-row 참고 — 막대그래프 쪽이 폭이 더 필요해 1.3:1). 오른쪽
+               칸에는 이제 가용일수 기반 재고 알림만 남는다. -->
+          <div class="side-by-side-row">
+            <div>
+              <div class="section-h3-row">
+                <h3 id="inbound-list-head">제품별 이번 달 입고 수량</h3>
+                <button type="button" class="panel-toggle-btn desc-toggle-btn" id="inbound-desc-toggle-btn">항목 설명</button>
+              </div>
+              <div class="legend-sticky-wrap">
+                <div class="legend-mini legend-sticky" id="inbound-legend"></div>
+                <div class="chart-wrap" id="inbound-chart-wrap">
+                  <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
+                </div>
+              </div>
+              <p class="ubus-pinned-note" id="inbound-desc-body" hidden>이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
             </div>
-            <div class="trend-chart-area" id="trend-chart-area">
-              <svg class="trend-svg" id="trend-svg" viewBox="0 0 400 120" preserveAspectRatio="none"></svg>
-              <div class="trend-tooltip" id="trend-tooltip" hidden></div>
+            <div class="low-stock-panel" id="low-stock-panel">
+              <div class="lsp-head-row">
+                <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
+                <button type="button" class="panel-toggle-btn desc-toggle-btn" id="lowstock-desc-toggle-btn">항목 설명</button>
+              </div>
+              <p class="lsp-sub" id="lowstock-desc-body" hidden>창고 기준 합계(TM·3PL·UBUS, 수입창고 제외) · B급·리퍼·재고 0개 제외 · 항상 본품 기준(구분 설정 무관) · 로봇청소기 S10·S9·S8, Stand청소기(F25 제외) 한정 · 창고·브랜드·카테고리·시리즈·제품 필터 모두 반영</p>
+              <div class="low-stock-tiers" id="low-stock-tiers"></div>
             </div>
           </div>
         </div>
@@ -1351,8 +1467,7 @@
                변경했다. 전주대비 ▲/▼(wowChange)는 물류팀이 WW34→WW35 파일을 비교해 이미 계산해 둔 값이라
                그대로 유지(대시보드가 재계산할 수 있는 실시간 이력이 아니므로) — 그래서 총재고·가용일수는
                실시간인데 ▲/▼ 증감폭만 지난 물류팀 주간 비교 기준이라는 점을 안내 문구·툴팁에 명시한다.
-               기존 "주요 재고 알림"(수량 기반)은 아래 그대로 유지하고 이 패널을 그 위에 배치한다(사용자
-               확인 사항).
+               기존 "주요 재고 알림"(수량 기반)은 2026-09-03에 왼쪽 칸으로 옮겼다(위 .side-by-side-row 참고).
                2026-09-03 추가(사용자 지시, 커밋 #86): "구분 선택 기준없이 세정제, 악세서리키트, 더스트백
                재고도 반영해줘" — 물류팀 파일이 집계하는 24개 본품 스펙과는 별도로, ACC 소모품 중 관리
                의미가 뚜렷한 핵심 11종(세정제 1 · 모델별 악세서리키트 7 · 모델별 더스트백 3, ACC_AVAIL_ITEMS
@@ -1361,23 +1476,13 @@
                없으므로, 총재고만 실시간 계산해 기존 "판매 실적 없음(가용일수 산정 불가)" 구간에 라벨 앞
                "[ACC]" 표시와 함께 표시한다(자세한 포함/제외 기준은 ACC_AVAIL_ITEMS 정의부 주석 참고). -->
           <div class="low-stock-panel" id="avail-days-panel">
-            <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-            <p class="lsp-sub">총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
+            <div class="lsp-head-row">
+              <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
+              <button type="button" class="panel-toggle-btn desc-toggle-btn" id="avail-desc-toggle-btn">항목 설명</button>
+            </div>
+            <p class="lsp-sub" id="avail-desc-body" hidden>총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
-          <div class="low-stock-panel" id="low-stock-panel">
-            <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-            <p class="lsp-sub">창고 기준 합계(TM·3PL·UBUS, 수입창고 제외) · B급·리퍼·재고 0개 제외 · 항상 본품 기준(구분 설정 무관) · 로봇청소기 S10·S9·S8, Stand청소기(F25 제외) 한정 · 창고·브랜드·카테고리·시리즈·제품 필터 모두 반영</p>
-            <div class="low-stock-tiers" id="low-stock-tiers"></div>
-          </div>
-          <h3 style="margin-top:20px;" id="inbound-list-head">제품별 이번 달 입고 수량</h3>
-          <div class="legend-sticky-wrap">
-            <div class="legend-mini legend-sticky" id="inbound-legend"></div>
-            <div class="chart-wrap" id="inbound-chart-wrap">
-              <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
-            </div>
-          </div>
-          <p class="ubus-pinned-note">이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
         </div>
       </div>
     </div>
@@ -1873,6 +1978,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
+  // 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — [본품] 품목별 잔여재고를 예전처럼
+  // 상위 20개로 자르지 않고, 10/50/100개 중 사용자가 고른 개수만큼 상위순서 그대로 보여준다). 화면을
+  // 새로고침해도 마지막으로 고른 개수가 유지되도록 localStorage에 저장한다. 버튼 클릭 핸들러는 아래
+  // boot() 쪽 #item-limit-select 설정 부분 참고.
+  let itemListLimit = 10;
+  try {
+    const savedLimit = parseInt(localStorage.getItem('tw_item_limit'), 10);
+    if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
+  } catch (e) {}
   // 2026-09-03 추가(커밋 #85, 사용자 지시): fillProduct()가 "제품" 후보 목록을 만들 때마다 각 후보(canonical
   // 품목명)가 완제품인지 ACC인지 함께 기록해두는 맵 — elProduct의 change 리스너가 "ACC 품목을 선택했을 때
   // 구분을 자동으로 ACC 포함으로 전환"하는 데 사용한다(isAccProductName 참고).
@@ -3004,7 +3118,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       return { headSuffix, legendHtml, bodyHtml };
     }
 
-    const completeBlock = buildItemBlock('완제품', 20);
+    // 2026-09-03 갱신(사용자 지시): 상위 20개 고정 대신, 사용자가 고른 표시 개수(itemListLimit, 10/50/100)
+    // 만큼 상위순서 그대로 보여준다 — 위 let itemListLimit 선언부/아래 #item-limit-select 버튼 핸들러 참고.
+    const completeBlock = buildItemBlock('완제품', itemListLimit);
     document.getElementById('item-list-head').textContent = `[본품] 품목별 잔여재고 ${completeBlock.headSuffix}`;
     document.getElementById('item-bars').innerHTML = completeBlock.bodyHtml;
     document.getElementById('item-legend').innerHTML = completeBlock.legendHtml;
@@ -3248,7 +3364,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
 
   function renderTrend(points, dayKeys) {
     const svg = document.getElementById('trend-svg');
-    const W = 400, H = 120, PAD = 8;
+    // 2026-09-03 갱신(사용자 지시: 그래프를 esum 타일 요약 바로 아래로 옮기며 "높이를 적당히 줄여달라") —
+    // H를 120→84로 줄였다. HTML의 svg viewBox="0 0 400 84"·CSS svg.trend-svg height:84px와 반드시 일치해야
+    // 한다(셋 중 하나만 바뀌면 좌표 축척이 어긋나 그래프가 찌그러지거나 잘려 보인다).
+    const W = 400, H = 84, PAD = 8;
     const min = Math.min(...points), max = Math.max(...points);
     const range = (max - min) || 1;
     // 2026-09-02 수정(9월 1일자 갱신 중 발견된 버그): 새 달 첫날처럼 TM_DATA.days가 딱 하루치(1개)만
@@ -3547,6 +3666,56 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
   esumToggleBtn.addEventListener('click', () => setEsumCondensed(!esumEl.classList.contains('condensed')));
   try { setEsumCondensed(localStorage.getItem('tw_esum_condensed') === '1'); } catch (e) {}
+
+  // 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — [본품] 품목별 잔여재고 표시 개수를
+  // 10/50/100 중에서 선택). 버튼을 누르면 itemListLimit을 바꾸고 render()를 다시 호출해 buildItemBlock의
+  // limit이 반영되도록 한다(위 let itemListLimit 선언부/buildItemBlock 호출부 참고).
+  function syncItemLimitButtons() {
+    document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.limit, 10) === itemListLimit);
+    });
+  }
+  document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      const v = parseInt(b.dataset.limit, 10);
+      if (v === itemListLimit) return;
+      itemListLimit = v;
+      try { localStorage.setItem('tw_item_limit', String(v)); } catch (e) {}
+      syncItemLimitButtons();
+      render();
+    });
+  });
+  syncItemLimitButtons();
+
+  // 2026-09-03 추가(사용자 지시: "항목별 설명문구는 처음부터 화면상 보여주니 너무 자리를 많이 차지해
+  // 복잡하게 보여서 항목 설명이라는 버튼을 클릭하면 해당 항목에 대한 설명을 볼수 있도록 추가") — 여러
+  // 안내 문구 블록(esum 창고 안내 3개/가용일수 알림/주요 재고 알림/이번 달 입고 수량)에 공통으로 쓰는
+  // 접기·펼치기 토글. 기본은 접힘(숨김) — 버튼을 눌러야 펼쳐지고, 펼침 상태는 섹션별로 localStorage에
+  // 저장해 새로고침 후에도 유지한다. 이 블록들은 필터가 바뀌어도 다시 그려지지 않는 정적 설명文이라
+  // render()가 아니라 여기 boot()에서 한 번만 설정하면 된다.
+  function setupDescToggle(btnId, bodyId, storageKey) {
+    const btn = document.getElementById(btnId);
+    const body = document.getElementById(bodyId);
+    if (!btn || !body) return;
+    function apply(open) {
+      body.hidden = !open;
+      btn.textContent = open ? '항목 설명 닫기' : '항목 설명';
+      btn.classList.toggle('active', open);
+    }
+    let open = false;
+    try { open = localStorage.getItem(storageKey) === '1'; } catch (e) {}
+    apply(open);
+    btn.addEventListener('click', () => {
+      open = body.hidden;
+      apply(open);
+      try { localStorage.setItem(storageKey, open ? '1' : '0'); } catch (e) {}
+    });
+  }
+  setupDescToggle('esum-notes-toggle-btn', 'esum-notes-body', 'tw_desc_esum');
+  setupDescToggle('avail-desc-toggle-btn', 'avail-desc-body', 'tw_desc_avail');
+  setupDescToggle('lowstock-desc-toggle-btn', 'lowstock-desc-body', 'tw_desc_lowstock');
+  setupDescToggle('inbound-desc-toggle-btn', 'inbound-desc-body', 'tw_desc_inbound');
+
   // 2026-08-28 갱신(28차, 사용자 지시): "입고예정" 탭 대개편.
   //  - "총 8월에는 몇 개, 9월에는 몇 개"처럼 제품별 월별 입고예정 합계를 한눈에 보여준다.
   //  - "검정=확정 일정 중 오늘 이전 날짜는 이미 현재 재고에 반영된 것으로 보고 제외"(boot() 상단 SCHED_ITEMS
