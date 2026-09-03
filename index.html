@@ -1179,7 +1179,7 @@
           <button type="button" data-kind="전체">ACC 포함</button>
         </div>
       </div>
-      <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈·구분 조건에 맞는 품목만 표시되며, 검색창에 품목명 일부를 입력해 좁힐 수 있습니다.</p>
+      <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈 조건에 맞는 품목만 표시되며(구분과 무관하게 ACC 품목도 항상 함께 표시됩니다), 검색창에 품목명 일부를 입력해 좁힐 수 있습니다. ACC 품목을 선택하면 구분이 자동으로 "ACC 포함"으로 전환됩니다.</p>
       <div class="filter-bar">
         <div class="field">
           <label for="f-warehouse">창고 <span class="multi-hint">(중복 선택 가능)</span></label>
@@ -1336,10 +1336,17 @@
                그대로 유지(대시보드가 재계산할 수 있는 실시간 이력이 아니므로) — 그래서 총재고·가용일수는
                실시간인데 ▲/▼ 증감폭만 지난 물류팀 주간 비교 기준이라는 점을 안내 문구·툴팁에 명시한다.
                기존 "주요 재고 알림"(수량 기반)은 아래 그대로 유지하고 이 패널을 그 위에 배치한다(사용자
-               확인 사항). -->
+               확인 사항).
+               2026-09-03 추가(사용자 지시, 커밋 #86): "구분 선택 기준없이 세정제, 악세서리키트, 더스트백
+               재고도 반영해줘" — 물류팀 파일이 집계하는 24개 본품 스펙과는 별도로, ACC 소모품 중 관리
+               의미가 뚜렷한 핵심 11종(세정제 1 · 모델별 악세서리키트 7 · 모델별 더스트백 3, ACC_AVAIL_ITEMS
+               정의 참고)을 항상 함께 보여준다("구분" 토글과 무관 — 본품 24개 스펙처럼 kindMode를 아예
+               보지 않는다). 이 ACC 품목들은 물류팀 파일에 일평균 출하량 데이터가 없어 가용일수를 계산할 수
+               없으므로, 총재고만 실시간 계산해 기존 "판매 실적 없음(가용일수 산정 불가)" 구간에 라벨 앞
+               "[ACC]" 표시와 함께 표시한다(자세한 포함/제외 기준은 ACC_AVAIL_ITEMS 정의부 주석 참고). -->
           <div class="low-stock-panel" id="avail-days-panel">
             <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-            <p class="lsp-sub">총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의)</p>
+            <p class="lsp-sub">총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
           <div class="low-stock-panel" id="low-stock-panel">
@@ -1428,6 +1435,88 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       if (!matched) return false;
     }
     return true;
+  }
+  // 2026-09-03 추가(커밋 #86, 사용자 지시: "가용일수 기반 재고 알림에는 구분 선택 기준없이 세정제,
+  // 악세서리키트, 더스트백 재고도 반영해줘"): 로봇청소기·Stand 청소기(H60 계열) ACC 소모품 중 "관리 의미가
+  // 뚜렷한 핵심 품목"만 골라 가용일수 패널에 별도 행으로 추가한다(사용자가 "핵심 품목만(권장)"으로 확정한
+  // 범위). 실제 데이터를 전수 조사한 결과 이름에 "세정제"/"악세서리키트"/"더스트백"이 들어간 품목은 16개
+  // 있었지만, 그중 "더스트백 커버"(먼지통 부속 커버, 소모품인 더스트백 자체와는 다름) 2개와 이 패널이
+  // 관리하지 않는 구형 라인(S7 maxV, H6 — H60과는 다른 단종 모델) 3개는 제외했다. 나머지 11개 중 같은
+  // H60 Hub Ultra 더스트백을 포장단위만 다르게 파는 SKU 2개(12pcs/3L, 3pcs/3L)는 물리적으로 같은 소모품
+  // 이므로 한 행으로 합산한다(require 조건이 두 SKU 이름 모두에 매칭되므로 자동으로 합산됨).
+  // require/exclude는 AVAIL_CLASSIFY와 동일한 부분일치 방식이지만, TM 쪽 표기("S9 MaxV Slim")와 UBUS
+  // 파트너 쪽 표기("S9 Slim", "MaxV" 누락)가 서로 다른 경우가 실측 데이터에서 발견되어(로보락_S9 MaxV
+  // Ultra/Slim의 UBUS 등록명이 제각각이라 커밋 #84 때 겪은 것과 같은 종류의 표기 불일치) — require를
+  // "S9 MaxV Slim" 같은 한 덩어리 문구 대신 ['S9','Slim','악세서리키트'] 처럼 토큰 여러 개로 쪼개고
+  // exclude로 다른 변형(Ultra 등)을 막아, 표기가 조금 달라도 같은 물리적 품목이면 놓치지 않게 했다.
+  // series는 필터(브랜드·카테고리·시리즈·제품) 연동에만 쓰이고 재고 합산 로직과는 무관하다.
+  const ACC_AVAIL_ITEMS = [
+    { key: 'cleaner480', label: '[ACC] 세정제 480ml (S10·S9 공용)', brand: '로보락', major: '로봇청소기', series: ['S10', 'S9'], require: ['세정제'] },
+    { key: 'qrevoCurvKit', label: '[ACC] Qrevo Curv 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['Qrevo Curv'], require: ['Qrevo Curv', '악세서리키트'] },
+    { key: 's9UltraKit', label: '[ACC] S9 MaxV Ultra 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9', 'Ultra', '악세서리키트'], exclude: ['Slim'] },
+    { key: 's9SlimKit', label: '[ACC] S9 MaxV Slim 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9', 'Slim', '악세서리키트'], exclude: ['Ultra'] },
+    { key: 'z70Kit', label: '[ACC] Saros Z70 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['Saros Z70'], require: ['Saros Z70', '악세서리키트'] },
+    { key: 's8UltraKit', label: '[ACC] S8 MaxV Ultra 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S8'], require: ['S8 MaxV Ultra', '악세서리키트'] },
+    { key: 's10UltraKit', label: '[ACC] S10 MaxV Ultra 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Ultra', '악세서리키트'] },
+    { key: 's10SlimKit', label: '[ACC] S10 MaxV Slim 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S10'], require: ['S10 MaxV Slim', '악세서리키트'] },
+    { key: 's8UltraDust', label: '[ACC] S8 MaxV Ultra 더스트백', brand: '로보락', major: '로봇청소기', series: ['S8'], require: ['S8 MaxV Ultra', '더스트백'], exclude: ['커버'] },
+    { key: 'h60HubPlusDust', label: '[ACC] H60 Hub+ 더스트백', brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60 Hub+', '더스트백'] },
+    { key: 'h60HubUltraDust', label: '[ACC] H60 Hub Ultra 더스트백', brand: '로보락', major: 'Stand 청소기', series: ['H60'], require: ['H60 Hub Ultra', '더스트백'] },
+  ];
+  // availItemMatchesFilters와 동일한 로직이지만 AVAIL_CLASSIFY(24개 완제품 스펙) 대신 ACC_AVAIL_ITEMS를
+  // 대상으로 한다 — 별도 함수로 둔 이유는 완제품 스펙 필터링(이미 검증된 기존 로직)에 영향을 주지 않기
+  // 위해서다.
+  function accAvailItemMatchesFilters(key, brands, categories, seriesArr, products) {
+    const cls = ACC_AVAIL_ITEMS.find(x => x.key === key);
+    if (!cls) return true;
+    if (!inSel(cls.brand, brands)) return false;
+    if (!inSel(cls.major, categories)) return false;
+    if (!seriesArr.includes('전체') && !cls.series.some(s => seriesArr.includes(s))) return false;
+    if (!products.includes('전체')) {
+      const req = cls.require || [], exc = cls.exclude || [];
+      const matched = products.some(p => {
+        const hay = String(p);
+        return req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t));
+      });
+      if (!matched) return false;
+    }
+    return true;
+  }
+  // ACC_AVAIL_ITEMS 한 항목(spec)의 실시간 총재고를 계산한다. liveStockForAvailClass(완제품 전용, UBUS
+  // 파트너는 robotFullKey로 매칭)와 달리 ACC는 kind==='ACC'인 품목만 보고, UBUS 파트너 쪽도 robotFullKey가
+  // 아니라 완제품과 동일한 require/exclude 이름 매칭으로 직접 찾는다(ACC는 series 필드가 전부 'ACC'로
+  // 뭉뚱그려져 있어 robotFullKey 같은 필드 기반 키를 쓸 수 없다). 매칭되는 품목이 하나도 없으면(향후 TM
+  // 품목코드·이름 표기가 바뀌는 등의 예외 상황) null을 반환해 호출부가 그 행 자체를 건너뛰게 한다 — 파일
+  // 폴백 값이 없으므로(이 ACC 항목들은애초에 물류팀 파일에 없음) "0개"로 잘못 표시해 재고 소진처럼
+  // 보이는 것보다 행을 아예 숨기는 편이 안전하다.
+  function liveStockForAccItem(key) {
+    const cls = ACC_AVAIL_ITEMS.find(x => x.key === key);
+    if (!cls) return null;
+    let total = 0;
+    let matchedAny = false;
+    const latest = days[String(maxDay)] || [];
+    const req = cls.require || [], exc = cls.exclude || [];
+    const nameMatches = (name) => req.every(t => name.includes(t)) && !exc.some(t => name.includes(t));
+    items.forEach((it, i) => {
+      if (it.kind !== 'ACC') return;
+      if (it.brand !== cls.brand) return;
+      if (it.major !== cls.major) return;
+      if (isGraded(it.name) || isRefurb(it.name)) return;
+      if (!nameMatches(it.name)) return;
+      matchedAny = true;
+      const day = latest[i] || [0, 0];
+      total += (day[0] || 0) + (day[1] || 0) + (it.imp || 0);
+    });
+    PINNED.forEach(u => {
+      if (u.kind !== 'ACC') return;
+      if (u.brand !== cls.brand) return;
+      if (u.major !== cls.major) return;
+      if (isGraded(u.name) || isRefurb(u.name)) return;
+      if (!nameMatches(u.name)) return;
+      matchedAny = true;
+      total += (u.cur || 0);
+    });
+    return matchedAny ? total : null;
   }
   // 2026-09-03 추가(사용자 지시, 커밋 #84): "가용일수" 패널의 총재고를 물류팀 파일의 정적 curStock 대신
   // 매번 실시간으로 다시 계산한다. AVAIL_CLASSIFY의 brand/major/series/require/exclude로 TM_DATA.items 중
@@ -1758,6 +1847,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
+  // 2026-09-03 추가(커밋 #85, 사용자 지시): fillProduct()가 "제품" 후보 목록을 만들 때마다 각 후보(canonical
+  // 품목명)가 완제품인지 ACC인지 함께 기록해두는 맵 — elProduct의 change 리스너가 "ACC 품목을 선택했을 때
+  // 구분을 자동으로 ACC 포함으로 전환"하는 데 사용한다(isAccProductName 참고).
+  let productKindMap = {};
 
   function opt(sel, value, label) {
     const o = document.createElement('option');
@@ -2092,17 +2185,25 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // Ultra)은 canonicalProductName으로 대표 이름 하나로 합쳐서 옵션을 만들고, 수량도 두 표기의 합계로
     // 보여준다. B급/리퍼 재고는 canonicalProductName이 원래 이름을 그대로 반환하므로(병합 대상이 아님)
     // 자동으로 별도 품목으로 남는다.
+    // 2026-09-03 갱신(커밋 #85, 사용자 지시): "제품" 후보 목록 자체는 "구분"(본품만/ACC 포함) 토글과
+    // 무관하게 ACC 품목도 항상 포함시킨다 — kind 인자를 kindMode 대신 '전체'로 고정해서, 사용자가 "구분"을
+    // "본품만"에 둔 채로도 제품 드롭다운에서 ACC 품목을 검색·선택할 수 있게 한다. 실제 필터링(esum/재고추이
+    // 등)은 여전히 kindMode 기준으로 이뤄지므로, ACC 품목을 선택하면 아래 elProduct의 change 리스너가
+    // "구분"을 자동으로 "ACC 포함"으로 전환해 선택이 실제 조회 결과에 반영되게 한다.
     const nameQty = {};
+    productKindMap = {};
     items.forEach((it, i) => {
-      if (!matchesTm(it, brands, categories, seriesArr, kindMode, ['전체'])) return;
+      if (!matchesTm(it, brands, categories, seriesArr, '전체', ['전체'])) return;
       const latest = days[String(maxDay)][i];
       const key = canonicalProductName(it.name);
       nameQty[key] = (nameQty[key] || 0) + latest[0] + latest[1];
+      productKindMap[key] = it.kind;
     });
     PINNED.forEach(u => {
-      if (!matchesPinned(u, brands, categories, seriesArr, kindMode, ['전체'])) return;
+      if (!matchesPinned(u, brands, categories, seriesArr, '전체', ['전체'])) return;
       const key = canonicalProductName(u.name);
       nameQty[key] = (nameQty[key] || 0) + (u.cur || 0);
+      productKindMap[key] = u.kind;
     });
     elProduct.innerHTML = '';
     opt(elProduct, '전체', '전체');
@@ -2118,6 +2219,13 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const productSearchEl = document.querySelector('.msel[data-msel="product"] .msel-search');
     if (productSearchEl) productSearchEl.value = '';
     syncMsel('product');
+  }
+
+  // 2026-09-03 추가(커밋 #85, 사용자 지시): "제품" 필터에서 선택된 값 하나가 ACC 품목인지 판별한다.
+  // fillProduct()가 후보 목록을 만들 때마다 함께 기록해두는 productKindMap을 그대로 조회하며, elProduct의
+  // change 리스너에서 "ACC 품목을 선택하면 구분을 자동으로 ACC 포함으로 전환"하는 데 사용한다.
+  function isAccProductName(name) {
+    return productKindMap[name] === 'ACC';
   }
 
   // 창고를 특정 값 하나로만 고정하면(3PL/UBUS→로보락, 위니온→샤오미+TV, 세탁기→로보락+세탁건조기)
@@ -3253,7 +3361,26 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   elBrand.addEventListener('change', () => { normalizeMultiSelect(elBrand); fillCategory(); fillSeries(); syncMsel('brand'); render(); });
   elCategory.addEventListener('change', () => { normalizeMultiSelect(elCategory); fillSeries(); syncMsel('category'); render(); });
   elSeries.addEventListener('change', () => { normalizeMultiSelect(elSeries); syncMsel('series'); fillProduct(); render(); });
-  elProduct.addEventListener('change', () => { normalizeMultiSelect(elProduct); syncMsel('product'); render(); });
+  elProduct.addEventListener('change', () => {
+    normalizeMultiSelect(elProduct);
+    // 2026-09-03 추가(커밋 #85, 사용자 지시): "제품" 필터에서 ACC 품목을 선택했는데 "구분"이 아직
+    // "본품만"이면 matchesTm/matchesPinned의 kind==='완제품' 체크에 걸려 방금 고른 ACC 품목이 조회 결과에
+    // 전혀 반영되지 않는다(항상 0개로 보임 — fillProduct()는 목록 자체는 항상 보여주지만 실제 집계는
+    // kindMode를 그대로 따르기 때문). 제품을 ACC로 골랐다는 것 자체가 ACC를 보고 싶다는 의도이므로, 그
+    // 경우 "구분"을 자동으로 "ACC 포함"으로 전환해 선택이 실제로 조회에 반영되게 한다(elKindGroup 클릭
+    // 핸들러와 동일한 카테고리/시리즈 재계산 절차를 그대로 따른다).
+    const selectedProducts = getSelectedValues(elProduct);
+    if (kindMode !== '전체' && selectedProducts.some(isAccProductName)) {
+      kindMode = '전체';
+      [...elKindGroup.querySelectorAll('button[data-kind]')].forEach(b => b.classList.toggle('active', b.dataset.kind === kindMode));
+      const whs = getSelectedValues(elWarehouse);
+      const lock = whs.length === 1 ? WAREHOUSE_LOCK[whs[0]] : null;
+      if (!(lock && lock.category)) fillCategory();
+      fillSeries(); // 내부에서 fillProduct()까지 다시 호출되며, 방금 선택한 ACC 품목을 그대로 복원한다.
+    }
+    syncMsel('product');
+    render();
+  });
   // 2026-08-28 갱신(31차, 사용자 지시): 입고예정 탭의 "입항완료(예상)" 판정이 이제 조회일자(#f-date) 슬라이더
   // 값을 기준으로 하므로, 슬라이더를 움직일 때마다 재고 현황 탭(render)뿐 아니라 입고예정 탭도 함께
   // 다시 그린다(renderInboundSchedule은 파라미터 없이 항상 elDate.value를 새로 읽어온다).
@@ -3412,7 +3539,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     }
     const isNarrowed = !brands.includes('전체') || !categories.includes('전체') || !seriesArr.includes('전체') || !products.includes('전체');
     const filteredItems = data.items.filter(it => availItemMatchesFilters(it.spec, brands, categories, seriesArr, products));
-    if (weekEl) weekEl.textContent = `(총재고 실시간(${latestAsOf}) · 일평균 ${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''}${isNarrowed ? ` · 필터 적용 ${filteredItems.length}/${data.items.length}개` : ''})`;
+    // 2026-09-03 추가(커밋 #86, 사용자 지시): 물류팀 파일의 24개 본품 스펙과는 별도로, 세정제·악세서리키트·
+    // 더스트백 같은 ACC 소모품 11종도 같은 브랜드·카테고리·시리즈·제품 필터로 좁혀서 함께 보여준다("구분"
+    // 토글은 이 함수 자체가 kindMode를 인자로 받지 않으므로 — 본품 24개 스펙과 마찬가지로 — 애초에 반영되지
+    // 않는다, 즉 사용자가 요청한 "구분 선택 기준없이"가 그대로 만족된다).
+    const filteredAccKeys = ACC_AVAIL_ITEMS.map(x => x.key).filter(k => accAvailItemMatchesFilters(k, brands, categories, seriesArr, products));
+    if (weekEl) weekEl.textContent = `(총재고 실시간(${latestAsOf}) · 일평균 ${data.week || ''} 기준${data.prevWeek ? ' · 전주 ' + data.prevWeek + ' 대비' : ''}${isNarrowed ? ` · 필터 적용 ${filteredItems.length}/${data.items.length}개(+ACC ${filteredAccKeys.length}/${ACC_AVAIL_ITEMS.length}개)` : ''})`;
     const fmtNum = n => (n == null ? '-' : Number(n).toLocaleString('ko-KR', { maximumFractionDigits: 1 }));
     const fmtDays = n => (n == null ? '-' : fmtNum(n) + '일');
     const pad2 = n => String(n).padStart(2, '0');
@@ -3423,7 +3555,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const d = new Date(asOfUTC + Math.round(days) * 86400000);
       return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
     }
-    if (!filteredItems.length) {
+    if (!filteredItems.length && !filteredAccKeys.length) {
       root.innerHTML = '<div class="low-stock-empty">현재 선택된 브랜드·카테고리·시리즈·제품 조건에 해당하는 품목이 없습니다.</div>';
       return;
     }
@@ -3436,6 +3568,19 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const availDaysCur = (it.dailyAvg != null && it.dailyAvg > 0) ? curStock / it.dailyAvg : null;
       return { ...it, curStock, availDaysCur, projected: projectedDate(availDaysCur) };
     });
+    // 2026-09-03 추가(커밋 #86, 사용자 지시): ACC 소모품 행 — 물류팀 파일에 이 품목들의 일평균 출하량
+    // 데이터가 아예 없으므로(파일은 "본품 가용일수"만 집계) dailyAvg/availDaysCur/wowChange는 전부 null로
+    // 두고, 총재고만 liveStockForAccItem으로 실시간 계산해 채운다. availDaysCur가 null인 행은 아래에서
+    // 자동으로 "판매 실적 없음(가용일수 산정 불가)" 구간에 들어간다 — 새 UI를 만들지 않고 기존 4구간 분류
+    // 로직을 그대로 재사용한다(본품 중 판매 실적이 없는 품목과 같은 칸에 놓이지만, 라벨 앞에 "[ACC]"를
+    // 붙여 구분되게 했다). liveStockForAccItem이 null(매칭 실패)을 반환하는 항목은 행 자체를 건너뛴다.
+    const accRows = filteredAccKeys.map(key => {
+      const cls = ACC_AVAIL_ITEMS.find(x => x.key === key);
+      const curStock = liveStockForAccItem(key);
+      if (curStock == null) return null;
+      return { spec: key, label: cls.label, curStock, dailyAvg: null, wowChange: null, availDaysCur: null, projected: '-' };
+    }).filter(Boolean);
+    rows.push(...accRows);
     const danger = rows.filter(r => r.availDaysCur != null && r.availDaysCur < 7).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const warn = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 7 && r.availDaysCur < 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
     const safe = rows.filter(r => r.availDaysCur != null && r.availDaysCur >= 14).sort((a, b) => a.availDaysCur - b.availDaysCur);
