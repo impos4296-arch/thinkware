@@ -1450,8 +1450,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // "S9 MaxV Slim" 같은 한 덩어리 문구 대신 ['S9','Slim','악세서리키트'] 처럼 토큰 여러 개로 쪼개고
   // exclude로 다른 변형(Ultra 등)을 막아, 표기가 조금 달라도 같은 물리적 품목이면 놓치지 않게 했다.
   // series는 필터(브랜드·카테고리·시리즈·제품) 연동에만 쓰이고 재고 합산 로직과는 무관하다.
+  // 2026-09-03 갱신(사용자 지시): "UBUS 창고에서 ACC 재고가 있어 / 본 파일에 들어있는 클리너는 세정제고
+  // 제품명은 로보락_Dyad_클리너_Floor cleaner fluid-Cleaner_480ml_8.08.0002 / S10,9시리즈와 공용으로
+  // 사용하는 세정제로 동일한 재고로 보면되니까 참고해줘" — UBUS 파트너 재고의 이 품목(이름에 "세정제"가
+  // 없고 "Dyad_클리너"/"Floor cleaner fluid"로만 표기됨)이 TM의 "세정제 480ml"와 물리적으로 동일한
+  // 재고라는 것을 사용자가 직접 확인해줌. 단순 require:['세정제'] 문자열 포함 매칭으로는 이 UBUS 품목을
+  // 못 잡으므로(이름에 "세정제"라는 문구 자체가 없음), 이 한 항목만 require/exclude 대신 matchTest
+  // 함수를 써서 이미 검증된 inferAccSeriesTokens()의 세정제 판별 정규식(/세정제/ 또는 /floor cleaner
+  // fluid/i — "Cleaner"만으로 매칭하면 사이드브러시 등 무관한 부품까지 걸리는 것을 피하기 위해 이미
+  // 2026-08-26(18차)에 검증해둔 패턴)을 그대로 재사용한다.
   const ACC_AVAIL_ITEMS = [
-    { key: 'cleaner480', label: '[ACC] 세정제 480ml (S10·S9 공용)', brand: '로보락', major: '로봇청소기', series: ['S10', 'S9'], require: ['세정제'] },
+    { key: 'cleaner480', label: '[ACC] 세정제 480ml (S10·S9 공용, UBUS "Dyad_클리너" 동일 품목 합산)', brand: '로보락', major: '로봇청소기', series: ['S10', 'S9'], matchTest: (name) => /세정제/.test(name) || /floor cleaner fluid/i.test(name) },
     { key: 'qrevoCurvKit', label: '[ACC] Qrevo Curv 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['Qrevo Curv'], require: ['Qrevo Curv', '악세서리키트'] },
     { key: 's9UltraKit', label: '[ACC] S9 MaxV Ultra 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9', 'Ultra', '악세서리키트'], exclude: ['Slim'] },
     { key: 's9SlimKit', label: '[ACC] S9 MaxV Slim 악세서리키트', brand: '로보락', major: '로봇청소기', series: ['S9'], require: ['S9', 'Slim', '악세서리키트'], exclude: ['Ultra'] },
@@ -1473,11 +1482,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     if (!inSel(cls.major, categories)) return false;
     if (!seriesArr.includes('전체') && !cls.series.some(s => seriesArr.includes(s))) return false;
     if (!products.includes('전체')) {
+      // matchTest가 있는 항목(예: 세정제)은 require/exclude 대신 그 함수로 제품명을 판별한다.
       const req = cls.require || [], exc = cls.exclude || [];
-      const matched = products.some(p => {
-        const hay = String(p);
-        return req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t));
-      });
+      const testOne = cls.matchTest || (hay => req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t)));
+      const matched = products.some(p => testOne(String(p)));
       if (!matched) return false;
     }
     return true;
@@ -1496,7 +1504,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     let matchedAny = false;
     const latest = days[String(maxDay)] || [];
     const req = cls.require || [], exc = cls.exclude || [];
-    const nameMatches = (name) => req.every(t => name.includes(t)) && !exc.some(t => name.includes(t));
+    // matchTest가 있는 항목(예: 세정제 — TM/UBUS 표기가 서로 달라 단순 문자열 포함 매칭으로는 못 잡음)은
+    // require/exclude 대신 그 함수로 판별한다.
+    const nameMatches = cls.matchTest || ((name) => req.every(t => name.includes(t)) && !exc.some(t => name.includes(t)));
     items.forEach((it, i) => {
       if (it.kind !== 'ACC') return;
       if (it.brand !== cls.brand) return;
