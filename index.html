@@ -302,10 +302,17 @@
      대각선 드래그로 가로도 함께 늘어나길 기대한다는 피드백을 받아 resize: both로 변경. 가로 크기는
      기존에 `right: 0`(부모 폭에 맞춰 자동 고정)으로 묶여 있어 리사이즈 핸들로 폭을 늘려도 반영되지
      않았던 것이 원인 — `right`를 `auto`로 풀고 `width: 100%`(시작 시점엔 기존과 동일한 폭)로 바꿔
-     리사이즈가 폭에도 실제로 반영되도록 함. */
+     리사이즈가 폭에도 실제로 반영되도록 함.
+     2026-09-03 수정(사용자 지시: "제품 조회 필터에 사이즈를 선택시 기본 조회값으로 지금 기준으로 10%
+     더 크게 해줘" → 너비만 확대 범위로 확정: "너비만 10% 확대, 글자가 너무 긴데 지금 사이즈로는 어떤
+     제품인지 바로 보이지 않아"): 품목명이 길어 기존 100%(필터 칸 폭과 동일) 너비에서는 말줄임표(...)로
+     잘려 어떤 품목인지 바로 식별하기 어렵다는 피드백 — 기본(리사이즈 전) 너비를 100%→110%로 10% 확대.
+     `left: 0`은 그대로라 확장분은 오른쪽으로만 삐져나가며(절대 위치 오버레이라 다른 레이아웃을 밀어내지
+     않음), 기존에도 드래그로 최대 90vw까지 넓힐 수 있었으므로 시각적으로 새로운 리스크는 아니다. 높이는
+     이번 요청 범위 밖이라 220px 그대로 유지. */
   .msel[data-msel="product"] .msel-panel {
     right: auto;
-    width: 100%;
+    width: 110%;
     height: 220px;
     min-width: 120px;
     max-width: 90vw;
@@ -475,6 +482,15 @@
      그대로 두고(수치 자체는 확정치) 타일 테두리만 입고예정 타일과 같은 점선/옅은 배경으로 맞춰 최초 화면
      기본값에서 제외된 상태와 시각적으로도 구분되게 한다.  */
   .esum-tile.muted { background: var(--surface); border-style: dashed; border-color: var(--border-strong); }
+  /* 2026-09-03 추가(사용자 지시: "수입창고, 입고예정, 미발주 창고는 클릭해서 선택 해제를 할때 단독으로
+     선택이 안되고 있어" — 버그 진단 결과): .esum-tile.active가 border-color를 강조색(진한 텍스트색)으로
+     바꾸려 해도, 이 세 타일에만 붙는 .muted/.forecast 규칙이 이 CSS 파일에서 더 뒤에 선언돼 있어(동일
+     우선순위라 소스 순서상 나중 규칙이 이김) border-color가 옅은 회색 점선 톤으로 도로 덮어써졌다 —
+     기능(선택/해제 자체)은 정상 동작했지만 다른 5개 실창고 타일과 달리 테두리가 진하게 강조되지 않아
+     "클릭해도 반응이 없다"로 보인 원인 중 하나. 선택된(active) 상태에서는 이 세 타일도 다른 타일과 동일하게
+     테두리가 진하게(실선) 강조되도록 별도로 덮어쓴다 — 선택되지 않은 기본 상태의 점선/옅은 테두리 구분은
+     그대로 유지된다. */
+  .esum-tile.muted.active, .esum-tile.forecast.active { border-color: var(--text-primary); border-style: solid; }
   .esum-name { font-size: 12.5px; color: var(--text-muted); margin: 0 0 5px; display:flex; align-items:center; justify-content:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .esum-value { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .esum-value .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 1px; }
@@ -2642,7 +2658,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // "전체"가 선택된 경우는 예전처럼 아무 타일도 강조하지 않고, 특정 창고가 1개 이상 선택된 경우에만 그
     // 창고들에 강조 표시한다(단일 선택이든 다중 선택이든 동일한 규칙).
     const total = activeSources.reduce((s, w) => s + (sumByWarehouse[w] || 0), 0);
-    const tileClass = name => 'esum-tile' + (!looksFullAll && activeSources.includes(name) ? ' active' : '');
+    // 2026-09-03 갱신(사용자 지시: "수입창고, 입고예정, 미발주 창고는 클릭해서 선택 해제를 할때 단독으로
+    // 선택이 안되고 있어" — 버그 진단 결과): 타일 강조 여부를 예전에는 looksFullAll(=isFullAll || isDefaultReal)
+    // 기준으로 껐는데, isDefaultReal은 "실창고 6개(수입창고 포함)가 전부 개별 선택되면 '전체 창고'처럼 보이게"
+    // 하는 31차-5의 하위호환용 표시 로직이다. 그런데 38차에서 esum 타일 클릭 토글 기능이 추가되면서, 기본
+    // 화면(5개 선택)에서 수입창고 타일을 클릭해 켜면 정확히 그 실창고 6개 조합이 완성되어 isDefaultReal이
+    // true가 되고, looksFullAll도 true가 되어 방금 클릭해서 켠 수입창고를 포함해 8개 타일 전부의 강조 표시가
+    // 사라져버렸다("선택했는데 아무 반응이 없다"로 보이는 원인). 타일 강조는 실제 "전체"를 문자 그대로 선택한
+    // 경우(isFullAll)에만 끄고, isDefaultReal 여부와는 무관하게 항상 실제 선택 상태(activeSources)를 그대로
+    // 반영하도록 기준을 isFullAll로 좁힌다. looksFullAll 자체(라벨/범례 등 다른 표시용)는 그대로 두어 31차-5
+    // 동작은 유지한다 — 오직 타일 강조 계산에만 영향을 준다.
+    const tileClass = name => 'esum-tile' + (!isFullAll && activeSources.includes(name) ? ' active' : '');
 
     // esum 타일 표시값(2026-08-26 단순화): 창고 선택 여부와 무관하게 7개 타일 전부 항상 현재
     // 브랜드/카테고리/시리즈/구분 필터를 그대로 반영한다(tmSum/plSum/... 은 위에서 이미 현재 필터로 계산됨).
