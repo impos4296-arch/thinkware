@@ -1936,14 +1936,30 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 패널을 다시 그릴 때마다 초기화되면 안 되므로, 옵션 목록만 담는 .msel-opts 컨테이너를 별도로 두고
   // 검색창 자체는 최초 1회만 생성해 유지한다.
   const MSEL_SEARCHABLE = { product: true };
+  // 2026-09-03 추가(사용자 지시): "제품 조회 필터에서는 세정제, 클리너 둘중 아무거나 조회해도 해당 품목이
+  // 모두 보이도록 해줘" — 세정제 480ml 품목이 TM에서는 "로보락_세정제 480ml_Cleaner 480ml_..."로, UBUS
+  // (및 TM의 별도 Dyad 전용 SKU)에서는 "로보락_Dyad_클리너_Floor cleaner fluid-Cleaner_480ml_..."로 표기가
+  // 서로 달라(커밋 #86 세정제 총재고 합산 때 이미 확인한 것과 동일한 표기 불일치), 제품 검색창에 "세정제"만
+  // 입력하면 "클리너" 표기 품목이, "클리너"만 입력하면 "세정제" 표기 품목이 검색 결과에서 누락됐다.
+  // isCleanerFluidProductName은 ACC_AVAIL_ITEMS의 cleaner480.matchTest / inferAccSeriesTokens에서 이미
+  // 검증된 것과 동일한 판별 정규식(/세정제/ 또는 /floor cleaner fluid/i)을 그대로 재사용한다 — 이 정규식은
+  // "세정제 480ml" 계열 품목에만 고유하게 걸리고 "클리너통"/"Mop Cleaner Brush"/"Vacuum Cleaner" 같은 다른
+  // 브러시·필터 부속품에는 걸리지 않으므로, 검색어 확장 범위가 세정제 480ml 두 표기로만 정확히 한정된다.
+  function isCleanerFluidProductName(name) {
+    return /세정제/.test(name) || /floor cleaner fluid/i.test(name);
+  }
   function filterMselOptions(key, term) {
     const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
     if (!wrap) return;
     const optsHost = wrap.querySelector('.msel-opts') || wrap.querySelector('.msel-panel');
     const t = term.trim().toLowerCase();
+    // "세정제"/"클리너"(또는 그 일부, 예: "세정"/"클리")를 입력했을 때만 동의어 확장을 적용 — 무관한
+    // 검색어(예: "세트")까지 폭넓게 걸리지 않도록 정확히 이 두 단어의 부분 문자열일 때만 활성화한다.
+    const isCleanerSearch = !!t && ('세정제'.includes(t) || '클리너'.includes(t));
     optsHost.querySelectorAll('.msel-opt').forEach(row => {
       const txt = row.querySelector('span') ? row.querySelector('span').textContent.toLowerCase() : '';
-      row.style.display = (!t || txt.includes(t)) ? '' : 'none';
+      const matched = !t || txt.includes(t) || (isCleanerSearch && isCleanerFluidProductName(txt));
+      row.style.display = matched ? '' : 'none';
     });
   }
   function syncMsel(key) {
