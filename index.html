@@ -448,18 +448,34 @@
   .panel-toggle-btn.active { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
   /* 2026-09-03 갱신(사용자 지시: "전체적으로 항목설명 버튼이 해당 항목과 너무 붙어있지 않도록 자연스러운
      넓지 않은 간격조정") — 제목(h3/h4)과 "항목 설명" 버튼 사이 gap을 10px→16px로, 그 줄과 바로 아래 내용
-     사이 여백도 살짝 늘려 버튼이 관련 항목에 바짝 붙어 보이지 않게 했다(너무 넓지는 않게 적당히만). */
-  .section-h3-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin: 0 0 10px; }
+     사이 여백도 살짝 늘려 버튼이 관련 항목에 바짝 붙어 보이지 않게 했다(너무 넓지는 않게 적당히만).
+     2026-09-04 갱신(사용자 지시: "항목별 버튼의 배치는 ... 해당 항목에 오른쪽에 비치되는게 좋아보여 ...
+     그만큼 한줄이 줄어드는 효과가 있어") — 제목 텍스트가 길어 줄바꿈되는 경우(예: 가용일수 패널) 버튼이
+     flex space-between 구조에서 별도 줄로 밀려나 전체 줄 수가 늘어나던 문제를 고치기 위해, flex 대신
+     버튼을 float:right로 제목 텍스트 오른쪽 위에 붙이고 텍스트가 그 옆을 자연스럽게 감싸며 흐르도록
+     바꿨다 — 이 효과를 내려면 HTML에서 버튼(또는 버튼 묶음)이 제목 텍스트보다 먼저 나와야 한다(아래 각
+     위치의 HTML 참고, float 요소는 먼저 배치돼야 그 기준으로 텍스트가 감싸 흐름). */
+  .section-h3-row { margin: 0 0 10px; overflow: hidden; }
+  .section-h3-row .desc-toggle-btn { float: right; margin: 0 0 8px 14px; }
   .section-h3-row h3 { margin: 0; }
-  .lsp-head-row { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin: 0 0 8px; }
+  .lsp-head-row { margin: 0 0 8px; overflow: hidden; }
+  .lsp-head-row .desc-toggle-btn { float: right; margin: 0 0 8px 14px; }
   .lsp-head-row .lsp-head { margin: 0; }
-  .esum-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .esum-head .filter-scope-note { flex: 1; margin: 0; }
+  .esum-head { overflow: hidden; }
+  .esum-head .filter-scope-note { margin: 0; }
   /* 2026-09-03 갱신(사용자 지시: 첨부 스크린샷 화살표 — "해당 항목설명은 화살표 방향으로 이동") — esum
      안내 문구용 "항목 설명" 버튼을 "간략히 보기" 버튼과 같은 줄(esum-head)로 옮기며 추가한 두 버튼 묶음.
-     (예전에 쓰던 .esum-notes-toggle-row는 더 이상 쓰지 않음 — 버튼이 이 자리로 옮겨왔기 때문.) */
-  .esum-head-btns { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+     (예전에 쓰던 .esum-notes-toggle-row는 더 이상 쓰지 않음 — 버튼이 이 자리로 옮겨왔기 때문.)
+     2026-09-04 갱신: 두 버튼 묶음도 위와 동일하게 float:right로 바꿔 안내 문구(filter-scope-note) 오른쪽에
+     자연스럽게 붙도록 했다(HTML상 이 묶음이 문구보다 먼저 나와야 함). */
+  .esum-head-btns { float: right; display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin: 0 0 8px 14px; }
   .esum-notes-body { margin: 10px 0 16px; }
+  /* 2026-09-04 추가(사용자 지시: "누구든 이 항목은 어떤 기준에 어떤 내용일까에 대한 궁금증을 설명하기위한
+     설명이라 궁금했을때 이걸 누르면 된다고 생각할수 있게끔 버튼 만들어줘") — 버튼 텍스트 앞에 안내(정보)
+     아이콘을 붙여, 이 버튼이 "이 항목의 기준·내용이 궁금할 때 누르는 것"임을 한눈에 알 수 있게 했다
+     (텍스트는 아래 boot()의 setupDescToggle()에서 열림/닫힘 상태에 따라 동적으로 세팅 — 항상 아이콘 포함).
+     title 툴팁도 함께 붙여 마우스를 올렸을 때 목적이 명시적으로 보이게 했다. */
+  .desc-toggle-btn { display:inline-flex; align-items:center; gap:4px; }
   .explorer-summary {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
@@ -514,10 +530,14 @@
   .esum-value .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 1px; }
   .pin-dot { width:6px; height:6px; border-radius:50%; background: var(--text-muted); display:inline-block; }
 
+  /* 2026-09-04 갱신(사용자 지시: "선택구간 재고추이 항목과 품목별 잔여재고 항목 사이 간격이 너무 딱 붙어서
+     답답해 보여") — 재고추이 차트(.trend-wrap)와 바로 아래 [본품] 품목별 잔여재고 두 칸 레이아웃
+     (.explorer-body) 사이에 여백을 추가했다. */
   .explorer-body {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     gap: 22px;
+    margin-top: 26px;
   }
   @media (max-width: 900px) { .explorer-body { grid-template-columns: 1fr; } }
 
@@ -1320,11 +1340,11 @@
            (esum-notes-body)도 버튼 바로 아래·창고 타일 요약(esum) 바로 위로 함께 옮겨 버튼을 눌렀을 때
            내용이 버튼과 가까운 곳에서 펼쳐지도록 했다. -->
       <div class="esum-head">
-        <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
         <div class="esum-head-btns">
-          <button type="button" class="panel-toggle-btn desc-toggle-btn" id="esum-notes-toggle-btn">항목 설명</button>
+          <button type="button" class="panel-toggle-btn desc-toggle-btn" id="esum-notes-toggle-btn" title="이 항목의 기준과 안내 내용이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
           <button type="button" class="panel-toggle-btn" id="esum-toggle-btn">간략히 보기</button>
         </div>
+        <p class="filter-scope-note" id="esum-scope-note">아래 창고별 수량은 현재 선택한 브랜드·카테고리·시리즈·구분 조건에 해당하는 보유재고입니다. 조건이 모두 "전체"이면 창고 전체 재고가 표시됩니다.</p>
       </div>
       <!-- 2026-09-03 갱신(사용자 지시: "항목별 설명문구는 처음부터 화면상 보여주니 너무 자리를 많이
            차지해 복잡하게 보여서 항목 설명이라는 버튼을 클릭하면 해당 항목에 대한 설명을 볼수 있도록
@@ -1379,12 +1399,16 @@
             <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
             <!-- 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 전체 품목을 상위순서 유지한
                  채 모두 보여주되, 기본은 스크롤바로 10개만 보이게 하고 10/50/100개 중 표시 개수를 선택하는
-                 기능 추가). 클릭 핸들러/기본값 복원은 boot() 쪽 아래 참고(localStorage: tw_item_limit). -->
+                 기능 추가). 클릭 핸들러/기본값 복원은 boot() 쪽 아래 참고(localStorage: tw_item_limit).
+                 2026-09-04 추가(사용자 지시: "품목별 잔재재고는 조회에 해당되는 전품목에 대한 조회를 할수
+                 있도록 요청한거라 전체를 선택했을때는 156개면 156개 품목 모두가 보이니") — 10/50/100 외에
+                 "전체"(조회된 품목 전부, 잘라내지 않음) 옵션을 추가했다. -->
             <div class="item-limit-select" id="item-limit-select">
               <span class="ils-label">표시 개수</span>
               <button type="button" class="ils-btn" data-limit="10">10개</button>
               <button type="button" class="ils-btn" data-limit="50">50개</button>
               <button type="button" class="ils-btn" data-limit="100">100개</button>
+              <button type="button" class="ils-btn" data-limit="all">전체</button>
             </div>
           </div>
           <!-- 2026-08-28 갱신(25차, 사용자 지시): 범례를 item-bars "위"로 이동 + sticky 적용
@@ -1428,17 +1452,22 @@
                "주요 재고 알림"만 다시 오른쪽 칸(아래 avail-days-panel 밑)으로 되돌렸다. "제품별 이번 달
                입고 수량"은 왼쪽 칸(옛 재고추이 자리)에 그대로 남고, 더 이상 좌우로 나눌 상대가 없으므로
                .side-by-side-row 그리드 래퍼는 걷어내고 전체 폭으로 표시한다. -->
+          <!-- 2026-09-04 갱신(사용자 지시: "설명버튼이 제품별 이번달 입고수량 항목 설명은 그래프 아래오 맨
+               아래 나오는데 그외 나머지 항목들은 항목별 바로 아래 나오고 있어 바로 설명이 나오는게 더
+               자연스러워 보여") — inbound-desc-body(설명 문단)를 차트 아래(맨 밑)에서 헤더 줄 바로 아래·
+               차트 위로 옮겨 esum/가용일수/주요재고알림 패널과 동일하게 "버튼 → 바로 아래 설명" 패턴으로
+               통일했다. -->
           <div class="section-h3-row">
+            <button type="button" class="panel-toggle-btn desc-toggle-btn" id="inbound-desc-toggle-btn" title="이 항목의 기준과 산출 방식이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
             <h3 id="inbound-list-head">제품별 이번 달 입고 수량</h3>
-            <button type="button" class="panel-toggle-btn desc-toggle-btn" id="inbound-desc-toggle-btn">항목 설명</button>
           </div>
+          <p class="ubus-pinned-note" id="inbound-desc-body" hidden>이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
           <div class="legend-sticky-wrap">
             <div class="legend-mini legend-sticky" id="inbound-legend"></div>
             <div class="chart-wrap" id="inbound-chart-wrap">
               <svg class="bar-chart-svg" id="inbound-chart-svg" viewBox="0 0 400 200"></svg>
             </div>
           </div>
-          <p class="ubus-pinned-note" id="inbound-desc-body" hidden>이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
         </div>
         <div class="explorer-col">
           <!-- 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤
@@ -1471,8 +1500,8 @@
                "[ACC]" 표시와 함께 표시한다(자세한 포함/제외 기준은 ACC_AVAIL_ITEMS 정의부 주석 참고). -->
           <div class="low-stock-panel" id="avail-days-panel">
             <div class="lsp-head-row">
+              <button type="button" class="panel-toggle-btn desc-toggle-btn" id="avail-desc-toggle-btn" title="이 항목의 기준과 산출 방식이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
               <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
-              <button type="button" class="panel-toggle-btn desc-toggle-btn" id="avail-desc-toggle-btn">항목 설명</button>
             </div>
             <p class="lsp-sub" id="avail-desc-body" hidden>총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
@@ -1484,8 +1513,8 @@
                없이 `.low-stock-panel` 기본 스타일(margin: 0 0 20px 등)로 자연스럽게 크기가 맞춰진다. -->
           <div class="low-stock-panel" id="low-stock-panel">
             <div class="lsp-head-row">
+              <button type="button" class="panel-toggle-btn desc-toggle-btn" id="lowstock-desc-toggle-btn" title="이 항목의 기준과 산출 방식이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
               <h4 class="lsp-head" id="lsp-head">주요 재고 알림</h4>
-              <button type="button" class="panel-toggle-btn desc-toggle-btn" id="lowstock-desc-toggle-btn">항목 설명</button>
             </div>
             <p class="lsp-sub" id="lowstock-desc-body" hidden>창고 기준 합계(TM·3PL·UBUS, 수입창고 제외) · B급·리퍼·재고 0개 제외 · 항상 본품 기준(구분 설정 무관) · 로봇청소기 S10·S9·S8, Stand청소기(F25 제외) 한정 · 창고·브랜드·카테고리·시리즈·제품 필터 모두 반영</p>
             <div class="low-stock-tiers" id="low-stock-tiers"></div>
@@ -1989,10 +2018,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 상위 20개로 자르지 않고, 10/50/100개 중 사용자가 고른 개수만큼 상위순서 그대로 보여준다). 화면을
   // 새로고침해도 마지막으로 고른 개수가 유지되도록 localStorage에 저장한다. 버튼 클릭 핸들러는 아래
   // boot() 쪽 #item-limit-select 설정 부분 참고.
+  // 2026-09-04 갱신(사용자 지시: "품목별 잔재재고는 조회에 해당되는 전품목에 대한 조회를 할수 있도록
+  // 요청한거라 ... 전체를 선택했을때는 156개면 156개 품목 모두가 보이니") — 10/50/100 숫자 외에 문자열
+  // 'all'(전체, 자르지 않음)도 허용한다. buildItemBlock에서 limit==='all'이면 slice를 건너뛴다.
   let itemListLimit = 10;
   try {
-    const savedLimit = parseInt(localStorage.getItem('tw_item_limit'), 10);
-    if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
+    const savedRaw = localStorage.getItem('tw_item_limit');
+    if (savedRaw === 'all') itemListLimit = 'all';
+    else {
+      const savedLimit = parseInt(savedRaw, 10);
+      if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
+    }
   } catch (e) {}
   // 2026-09-03 추가(커밋 #85, 사용자 지시): fillProduct()가 "제품" 후보 목록을 만들 때마다 각 후보(canonical
   // 품목명)가 완제품인지 ACC인지 함께 기록해두는 맵 — elProduct의 change 리스너가 "ACC 품목을 선택했을 때
@@ -2953,7 +2989,36 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // 기존과 동일하되, kind 필터를 전역 kindMode 대신 인자로 받은 kindFilter로 고정해서 서로 독립적으로
     // 계산한다(buildItemBlock 안에서 idxsK/pinnedK를 매번 새로 구한다 — 상단의 idxs/pinnedMatched는 전역
     // kindMode 기준이라 이 용도로는 재사용하지 않음).
-    function buildItemBlock(kindFilter, limit) {
+    // 2026-09-04 추가(사용자 지시: "전체를 선택했을때는 ... 상위N 문구는 필요없고" / "조회된 품목은
+    // 브랜드-카테고리-시리즈끼리 나열되도록 하되 수량이 많은 제품이 제일 먼저 나오도록") — [본품] 품목별
+    // 잔여재고 표시개수에 "전체"(자르지 않음) 옵션이 생기면서 필요해진 헬퍼 3개.
+    // - sliceLimit: limit==='all'이면 자르지 않고 전부, 아니면 기존처럼 상위 N개만.
+    // - itemCountPhrase: 보여주는 개수가 전체 개수와 같으면(=잘라내지 않았으면) "N개 품목 전체"로,
+    //   그렇지 않으면(잘렸으면) 기존처럼 "N개 품목 중 상위 M"으로 표시한다.
+    // - groupSortRows: 품목을 브랜드-카테고리(major)-시리즈 조합으로 묶어(같은 조합끼리 서로 인접하게),
+    //   그룹은 그룹 내 최대 수량 기준 내림차순으로, 그룹 안에서는 수량 내림차순으로 정렬한다.
+    //   buildItemBlock의 groupSort 인자가 true일 때만([본품] 목록) 적용하고, [ACC] 상위 5개 목록은 기존처럼
+    //   전체 수량 단순 내림차순을 유지한다(호출부 groupSort=false).
+    function sliceLimit(arr, limit) {
+      return limit === 'all' ? arr.slice() : arr.slice(0, limit);
+    }
+    function itemCountPhrase(total, shown) {
+      return shown >= total ? `${total}개 품목 전체` : `${total}개 품목 중 상위 ${shown}`;
+    }
+    function groupSortRows(rows, qtyKey) {
+      const groups = new Map();
+      rows.forEach(r => {
+        const seriesKey = Array.isArray(r.series) ? r.series.join(',') : (r.series || '');
+        const key = `${r.brand || ''}|${r.major || ''}|${seriesKey}`;
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(r);
+      });
+      const groupArr = Array.from(groups.values());
+      groupArr.forEach(g => g.sort((a, b) => b[qtyKey] - a[qtyKey]));
+      groupArr.sort((a, b) => Math.max(...b.map(r => r[qtyKey])) - Math.max(...a.map(r => r[qtyKey])));
+      return groupArr.reduce((acc, g) => acc.concat(g), []);
+    }
+    function buildItemBlock(kindFilter, limit, groupSort) {
       // 2026-08-26 갱신(14차): kindFilter==='ACC'일 때는 브랜드·카테고리·구분·제품 필터는 그대로 matchesTm/
       // matchesPinned에 맡기되(series 인자는 ['전체']로 건너뛰어 내부 체크를 비활성화), 시리즈만 accSeriesMatches
       // (품목명 기반 추론)로 별도 확인한다 — 로봇청소기 ACC 대부분의 series 필드가 실제 시리즈명이 아니라
@@ -2973,9 +3038,11 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       let headSuffix, legendHtml, bodyHtml;
       if (singleWarehouse && PARTNER_SIDE.includes(singleWarehouse)) {
         const scoped = pinnedK.filter(u => u.source === singleWarehouse);
-        const rows = scoped.filter(u=>u.cur>0).sort((a,b) => b.cur - a.cur).slice(0, limit);
+        const sortedScoped = scoped.filter(u=>u.cur>0).sort((a,b) => b.cur - a.cur);
+        const orderedScoped = groupSort ? groupSortRows(sortedScoped, 'cur') : sortedScoped;
+        const rows = sliceLimit(orderedScoped, limit);
         const seg = SEG_OF_WAREHOUSE[singleWarehouse];
-        headSuffix = `(${singleWarehouse}) · ${scoped.length}개 품목 중 상위 ${rows.length}`;
+        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(scoped.length, rows.length)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse} <span class="pin-dot"></span></span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.cur));
@@ -2992,14 +3059,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         // (unshipped)를 값으로 쓰는 단독 선택 분기에 포함시킨다.
         const key = singleWarehouse === 'TM 자체창고' ? 'tm' : (singleWarehouse === '3PL' ? 'pl' : (singleWarehouse === '수입창고' ? 'imp' : 'un'));
         const seg = SEG_OF_WAREHOUSE[singleWarehouse];
-        const rows = idxsK.map(i => ({
+        const sortedRows = idxsK.map(i => ({
             name: items[i].name,
             val: key === 'imp' ? (items[i].imp||0) : (key === 'un' ? (items[i].unshipped||0) : dayArr[i][key === 'tm' ? 0 : 1]),
+            brand: items[i].brand, major: items[i].major, series: items[i].series,
           }))
           .filter(r => r.val > 0)
-          .sort((a,b) => b.val - a.val)
-          .slice(0, limit);
-        headSuffix = `(${singleWarehouse}) · ${idxsK.length}개 품목 중 상위 ${rows.length}`;
+          .sort((a,b) => b.val - a.val);
+        const orderedRows = groupSort ? groupSortRows(sortedRows, 'val') : sortedRows;
+        const rows = sliceLimit(orderedRows, limit);
+        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(idxsK.length, rows.length)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse}</span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.val));
@@ -3016,14 +3085,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         // 버그 수정 — FORECAST_BY_TM_INDEX(이번 달 입고예정 수량, TM 품목 인덱스 기준)를 값으로 사용해
         // TM 자체창고/3PL/수입창고 분기와 동일한 방식으로 막대 목록을 만든다.
         const seg = SEG_OF_WAREHOUSE['입고예정'];
-        const rows = idxsK.map(i => ({
+        const sortedRows = idxsK.map(i => ({
             name: items[i].name,
             val: FORECAST_BY_TM_INDEX[i] || 0,
+            brand: items[i].brand, major: items[i].major, series: items[i].series,
           }))
           .filter(r => r.val > 0)
-          .sort((a,b) => b.val - a.val)
-          .slice(0, limit);
-        headSuffix = `(입고예정(당월)) · ${idxsK.length}개 품목 중 상위 ${rows.length}`;
+          .sort((a,b) => b.val - a.val);
+        const orderedRows = groupSort ? groupSortRows(sortedRows, 'val') : sortedRows;
+        const rows = sliceLimit(orderedRows, limit);
+        headSuffix = `(입고예정(당월)) · ${itemCountPhrase(idxsK.length, rows.length)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE['입고예정']})"></i>입고예정(당월)</span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.val));
@@ -3079,7 +3150,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         const tmRows = tmOtherAll.concat(robotMatch.unmatchedTm, washerMatch.unmatchedTm, robotMatch.merged.map(mergeRow), washerMatch.merged.map(mergeRow));
         const partnerRows = partnerOtherAll.concat(robotMatch.unmatchedPartner, washerMatch.unmatchedPartner);
         const pool = tmRows.concat(partnerRows);
-        const rows = pool.slice().sort((a, b) => b.qty - a.qty).slice(0, limit);
+        const sortedPool = pool.slice().sort((a, b) => b.qty - a.qty);
+        const orderedPool = groupSort ? groupSortRows(sortedPool, 'qty') : sortedPool;
+        const rows = sliceLimit(orderedPool, limit);
         // 2026-08-28 추가(31차-3, 갱신 31차-5, 사용자 지시): "입고예정이 막대그래프 제일 오른쪽, 그다음이
         // 수입창고" — 위 mergeRow에서 TM 쪽 segs(tm/pl/imp/fc/un)와 파트너 쪽 seg(ub/we/wa)를 단순 concat하면
         // imp·fc·un이 파트너 세그먼트보다 앞에(중간에) 그려질 수 있으므로, 최종 표시 직전에 seg-imp·seg-fc·
@@ -3101,7 +3174,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         const scopeLabel = looksFullAll
           ? (presentSources.length === fullSourceCount || presentSources.length === 0 ? '전체 창고' : presentSources.join('+'))
           : activeSources.join('+');
-        headSuffix = `(${scopeLabel}) · ${pool.length}개 품목 중 상위 ${rows.length}`;
+        headSuffix = `(${scopeLabel}) · ${itemCountPhrase(pool.length, rows.length)}`;
         let legendSources = looksFullAll && presentSources.length ? presentSources : activeSources;
         // 2026-08-28 갱신(31차-5, 사용자 지시): 범례(주석) 표시 순서도 막대그래프 구간 순서와 맞춰 수입창고 →
         // 입고예정 순으로 맨 뒤에 오도록 재배열한다(2026-08-31 갱신 35차: 미발주를 입고예정 다음 맨 뒤로 추가).
@@ -3127,14 +3200,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
 
     // 2026-09-03 갱신(사용자 지시): 상위 20개 고정 대신, 사용자가 고른 표시 개수(itemListLimit, 10/50/100)
     // 만큼 상위순서 그대로 보여준다 — 위 let itemListLimit 선언부/아래 #item-limit-select 버튼 핸들러 참고.
-    const completeBlock = buildItemBlock('완제품', itemListLimit);
+    // 2026-09-04 갱신(사용자 지시): "전체" 옵션 추가 + 브랜드-카테고리-시리즈 그룹 정렬 적용(groupSort=true).
+    // [ACC] 상위 5개 목록은 기존처럼 그룹 정렬 없이 단순 수량순 유지(groupSort=false).
+    const completeBlock = buildItemBlock('완제품', itemListLimit, true);
     document.getElementById('item-list-head').textContent = `[본품] 품목별 잔여재고 ${completeBlock.headSuffix}`;
     document.getElementById('item-bars').innerHTML = completeBlock.bodyHtml;
     document.getElementById('item-legend').innerHTML = completeBlock.legendHtml;
 
     const accItemBlockEl = document.getElementById('acc-item-block');
     if (kindMode === '전체') {
-      const accBlock = buildItemBlock('ACC', 5);
+      const accBlock = buildItemBlock('ACC', 5, false);
       accItemBlockEl.style.display = '';
       document.getElementById('acc-item-list-head').textContent = `[ACC] 품목별 잔여재고 ${accBlock.headSuffix}`;
       document.getElementById('acc-item-bars').innerHTML = accBlock.bodyHtml;
@@ -3687,14 +3762,19 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — [본품] 품목별 잔여재고 표시 개수를
   // 10/50/100 중에서 선택). 버튼을 누르면 itemListLimit을 바꾸고 render()를 다시 호출해 buildItemBlock의
   // limit이 반영되도록 한다(위 let itemListLimit 선언부/buildItemBlock 호출부 참고).
+  // 2026-09-04 갱신: data-limit="all"(전체) 버튼 추가에 맞춰 'all'은 문자열 그대로, 나머지(10/50/100)는
+  // 숫자로 파싱한다.
+  function parseItemLimitValue(raw) {
+    return raw === 'all' ? 'all' : parseInt(raw, 10);
+  }
   function syncItemLimitButtons() {
     document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
-      b.classList.toggle('active', parseInt(b.dataset.limit, 10) === itemListLimit);
+      b.classList.toggle('active', parseItemLimitValue(b.dataset.limit) === itemListLimit);
     });
   }
   document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
     b.addEventListener('click', () => {
-      const v = parseInt(b.dataset.limit, 10);
+      const v = parseItemLimitValue(b.dataset.limit);
       if (v === itemListLimit) return;
       itemListLimit = v;
       try { localStorage.setItem('tw_item_limit', String(v)); } catch (e) {}
@@ -3716,7 +3796,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     if (!btn || !body) return;
     function apply(open) {
       body.hidden = !open;
-      btn.textContent = open ? '항목 설명 닫기' : '항목 설명';
+      // 2026-09-04 갱신(사용자 지시: 버튼을 보면 "궁금할 때 누르면 되는구나"를 바로 알 수 있게) — 열림/닫힘
+      // 상태와 무관하게 항상 안내 아이콘(ⓘ)을 붙여 이 버튼이 항목 설명용임을 일관되게 드러낸다.
+      btn.textContent = open ? 'ⓘ 항목 설명 닫기' : 'ⓘ 항목 설명';
       btn.classList.toggle('active', open);
     }
     let open = false;
