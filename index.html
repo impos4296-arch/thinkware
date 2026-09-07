@@ -550,9 +550,14 @@
   }
 
   /* 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 품목별 잔여재고를 상위 N개로 자르지 않고
-     전체를 보여주되, 스크롤바로 기본 10개 정도만 보이게 하고 표시 개수(10/50/100)를 선택할 수 있게).
-     제목 줄에 표시 개수 선택 버튼을 나란히 두고, 실제 막대 목록(#item-bars)만 별도 스크롤 컨테이너로 감싸
-     기본 높이를 대략 10행 정도로 제한한다(범례(.legend-sticky)는 이 스크롤 밖에 그대로 둬 항상 보이게 함). */
+     전체를 보여주되, 표시 개수(10/50/100)를 선택할 수 있게).
+     2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
+     만들어서 나머지 품목도 보여지도록 해줘") — 기존엔 #item-bars를 max-height:404px짜리 스크롤 박스(구 클래스
+     .item-bars-scroll)로 감싸 10/50/100개를 전부 그 좁은 박스 안에서 스크롤로만 보게 했는데, 이 방식이
+     답답하다는 지적에 따라 스크롤 박스를 없애고 10/50/100을 "페이지당 표시 개수"로 바꿔 실제 페이지네이션
+     (이전/다음, 페이지 번호 버튼)으로 나머지 품목을 넘겨보도록 변경했다 — 조회된 품목 전체는 여전히
+     페이지를 넘기면 다 볼 수 있으므로 별도 "전체" 옵션은 더 이상 두지 않는다(buildItemBlock/render() 쪽
+     paginateRows·itemCountPhrase·itemListPage 관련 주석 참고). */
   .item-list-head-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 0 0 12px; }
   .item-list-head-row h3 { margin: 0; }
   .item-limit-select { display:flex; align-items:center; gap:6px; }
@@ -570,8 +575,26 @@
   }
   .ils-btn:hover { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
   .ils-btn.active { background: var(--accent-3pl); color: #fff; border-color: var(--accent-3pl); }
-  .item-bars-scroll { max-height: 404px; overflow-y: auto; padding-right: 6px; }
   .item-bars { display: flex; flex-direction: column; gap: 12px; }
+  /* 2026-09-04 추가: 스크롤 박스를 대체하는 페이지네이션 바(이전/숫자/다음). 품목 목록이 1페이지뿐이면
+     buildPaginationHtml()이 빈 문자열을 반환해 컨테이너가 통째로 비어(margin 없이) 사라진다. */
+  .item-pagination { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:6px; margin-top: 16px; }
+  .ipg-btn {
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 28px;
+    padding: 5px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .ipg-btn:hover:not(:disabled) { background: var(--surface); color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .ipg-btn.active { background: var(--accent-3pl); color: #fff; border-color: var(--accent-3pl); cursor: default; }
+  .ipg-btn:disabled { opacity: .4; cursor: default; }
+  .ipg-ellipsis { color: var(--text-muted); font-size: 12px; padding: 0 2px; }
   .item-bar-row .top { display:flex; justify-content:space-between; gap:10px; font-size:12.5px; margin-bottom:4px; }
   .item-bar-row .top .nm { color: var(--text-primary); }
   .item-bar-row .top .val { font-weight:700; font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space:nowrap; }
@@ -1398,30 +1421,30 @@
           <div class="item-list-head-row">
             <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
             <!-- 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 전체 품목을 상위순서 유지한
-                 채 모두 보여주되, 기본은 스크롤바로 10개만 보이게 하고 10/50/100개 중 표시 개수를 선택하는
-                 기능 추가). 클릭 핸들러/기본값 복원은 boot() 쪽 아래 참고(localStorage: tw_item_limit).
-                 2026-09-04 추가(사용자 지시: "품목별 잔재재고는 조회에 해당되는 전품목에 대한 조회를 할수
-                 있도록 요청한거라 전체를 선택했을때는 156개면 156개 품목 모두가 보이니") — 10/50/100 외에
-                 "전체"(조회된 품목 전부, 잘라내지 않음) 옵션을 추가했다. -->
+                 채 모두 보여주되, 10/50/100개 중 표시 개수를 선택하는 기능 추가). 클릭 핸들러/기본값 복원은
+                 boot() 쪽 아래 참고(localStorage: tw_item_limit).
+                 2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외
+                 페이지를 만들어서 나머지 품목도 보여지도록 해줘") — 10/50/100은 이제 "페이지당 표시 개수"이고,
+                 나머지 품목은 아래 #item-list-pagination의 페이지 번호 버튼으로 넘겨본다. 조회된 품목은
+                 페이지를 넘기면 결국 전부 보이므로 별도 "전체" 옵션은 없앴다. -->
             <div class="item-limit-select" id="item-limit-select">
-              <span class="ils-label">표시 개수</span>
+              <span class="ils-label">페이지당 표시 개수</span>
               <button type="button" class="ils-btn" data-limit="10">10개</button>
               <button type="button" class="ils-btn" data-limit="50">50개</button>
               <button type="button" class="ils-btn" data-limit="100">100개</button>
-              <button type="button" class="ils-btn" data-limit="all">전체</button>
             </div>
           </div>
           <!-- 2026-08-28 갱신(25차, 사용자 지시): 범례를 item-bars "위"로 이동 + sticky 적용
                (자세한 설명은 위 CSS .legend-sticky-wrap/.legend-sticky 주석 참고).
-               2026-09-03 갱신: item-bars를 .item-bars-scroll로 한 번 더 감싸 기본 높이를 대략 10행으로
-               제한하고 스크롤로 나머지를 보게 했다(범례는 스크롤 밖에 그대로 둬 항상 보이게 함 — 위 CSS
-               .item-bars-scroll 주석 참고). -->
+               2026-09-04 갱신(사용자 지시: 스크롤 박스 대신 페이지네이션) — 예전엔 item-bars를
+               .item-bars-scroll(max-height 스크롤 박스)로 감쌌으나 이제 스크롤 없이 그대로 두고, 그 아래
+               #item-list-pagination에 이전/다음·페이지 번호 버튼을 렌더링해 나머지 품목을 페이지 단위로
+               보여준다(범례는 여전히 sticky로 항상 보임). -->
           <div class="legend-sticky-wrap">
             <div class="legend-mini legend-sticky" id="item-legend"></div>
-            <div class="item-bars-scroll" id="item-bars-scroll">
-              <div class="item-bars" id="item-bars"></div>
-            </div>
+            <div class="item-bars" id="item-bars"></div>
           </div>
+          <div class="item-pagination" id="item-list-pagination"></div>
           <div id="acc-item-block" style="display:none;">
             <h3 style="margin-top:20px;" id="acc-item-list-head">[ACC] 품목별 잔여재고</h3>
             <div class="legend-sticky-wrap">
@@ -2018,18 +2041,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 상위 20개로 자르지 않고, 10/50/100개 중 사용자가 고른 개수만큼 상위순서 그대로 보여준다). 화면을
   // 새로고침해도 마지막으로 고른 개수가 유지되도록 localStorage에 저장한다. 버튼 클릭 핸들러는 아래
   // boot() 쪽 #item-limit-select 설정 부분 참고.
-  // 2026-09-04 갱신(사용자 지시: "품목별 잔재재고는 조회에 해당되는 전품목에 대한 조회를 할수 있도록
-  // 요청한거라 ... 전체를 선택했을때는 156개면 156개 품목 모두가 보이니") — 10/50/100 숫자 외에 문자열
-  // 'all'(전체, 자르지 않음)도 허용한다. buildItemBlock에서 limit==='all'이면 slice를 건너뛴다.
+  // 2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
+  // 만들어서 나머지 품목도 보여지도록 해줘") — 한때 있었던 문자열 'all'(전체) 값은 없앴다. 이제
+  // itemListLimit은 항상 10/50/100 중 하나이며 "페이지당 표시 개수"로 쓰인다 — 조회된 전체 품목은
+  // itemListPage(현재 페이지)를 넘겨가며 다 볼 수 있다(buildItemBlock의 paginateRows 참고).
   let itemListLimit = 10;
   try {
-    const savedRaw = localStorage.getItem('tw_item_limit');
-    if (savedRaw === 'all') itemListLimit = 'all';
-    else {
-      const savedLimit = parseInt(savedRaw, 10);
-      if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
-    }
+    const savedLimit = parseInt(localStorage.getItem('tw_item_limit'), 10);
+    if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
   } catch (e) {}
+  let itemListPage = 1;
   // 2026-09-03 추가(커밋 #85, 사용자 지시): fillProduct()가 "제품" 후보 목록을 만들 때마다 각 후보(canonical
   // 품목명)가 완제품인지 ACC인지 함께 기록해두는 맵 — elProduct의 change 리스너가 "ACC 품목을 선택했을 때
   // 구분을 자동으로 ACC 포함으로 전환"하는 데 사용한다(isAccProductName 참고).
@@ -2989,21 +3010,32 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // 기존과 동일하되, kind 필터를 전역 kindMode 대신 인자로 받은 kindFilter로 고정해서 서로 독립적으로
     // 계산한다(buildItemBlock 안에서 idxsK/pinnedK를 매번 새로 구한다 — 상단의 idxs/pinnedMatched는 전역
     // kindMode 기준이라 이 용도로는 재사용하지 않음).
-    // 2026-09-04 추가(사용자 지시: "전체를 선택했을때는 ... 상위N 문구는 필요없고" / "조회된 품목은
-    // 브랜드-카테고리-시리즈끼리 나열되도록 하되 수량이 많은 제품이 제일 먼저 나오도록") — [본품] 품목별
-    // 잔여재고 표시개수에 "전체"(자르지 않음) 옵션이 생기면서 필요해진 헬퍼 3개.
-    // - sliceLimit: limit==='all'이면 자르지 않고 전부, 아니면 기존처럼 상위 N개만.
-    // - itemCountPhrase: 보여주는 개수가 전체 개수와 같으면(=잘라내지 않았으면) "N개 품목 전체"로,
-    //   그렇지 않으면(잘렸으면) 기존처럼 "N개 품목 중 상위 M"으로 표시한다.
+    // 2026-09-04 추가(사용자 지시: "조회된 품목은 브랜드-카테고리-시리즈끼리 나열되도록 하되 수량이 많은
+    // 제품이 제일 먼저 나오도록") — [본품] 품목별 잔여재고 정렬/표시에 필요한 헬퍼들.
+    // - paginateRows: 정렬이 끝난 배열을 pageSize 단위로 잘라 해당 page만 반환한다. page가 범위를 벗어나면
+    //   (예: 필터가 바뀌어 총 품목 수가 줄어든 경우) 유효 범위로 자동 보정(clamp)한다.
+    // 2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
+    // 만들어서 나머지 품목도 보여지도록 해줘") — 예전엔 limit==='all'이면 자르지 않는 sliceLimit이었으나,
+    // 스크롤 박스를 페이지네이션으로 바꾸면서 "한 번에 몇 개씩 보여줄지"(pageSize)와 "몇 페이지째인지"(page)
+    // 두 값으로 나눠 매번 그 페이지 분량만 잘라내는 paginateRows로 교체했다 — 'all' 값은 더 이상 쓰지 않는다.
+    // - itemCountPhrase: 1페이지에 다 들어가면(totalPages<=1) "N개 품목"만, 여러 페이지면 "N개 품목 ·
+    //   시작-끝번째 (P/T페이지)"로 표시해 지금 보고 있는 범위와 전체 페이지 수를 함께 알려준다.
     // - groupSortRows: 품목을 브랜드-카테고리(major)-시리즈 조합으로 묶어(같은 조합끼리 서로 인접하게),
     //   그룹은 그룹 내 최대 수량 기준 내림차순으로, 그룹 안에서는 수량 내림차순으로 정렬한다.
     //   buildItemBlock의 groupSort 인자가 true일 때만([본품] 목록) 적용하고, [ACC] 상위 5개 목록은 기존처럼
     //   전체 수량 단순 내림차순을 유지한다(호출부 groupSort=false).
-    function sliceLimit(arr, limit) {
-      return limit === 'all' ? arr.slice() : arr.slice(0, limit);
+    function paginateRows(arr, pageSize, page) {
+      const totalCount = arr.length;
+      const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+      const clampedPage = Math.min(Math.max(1, page || 1), totalPages);
+      const start = (clampedPage - 1) * pageSize;
+      return { rows: arr.slice(start, start + pageSize), totalCount, totalPages, page: clampedPage };
     }
-    function itemCountPhrase(total, shown) {
-      return shown >= total ? `${total}개 품목 전체` : `${total}개 품목 중 상위 ${shown}`;
+    function itemCountPhrase(totalCount, pageSize, page, totalPages) {
+      if (totalPages <= 1) return `${totalCount}개 품목`;
+      const start = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+      const end = Math.min(totalCount, page * pageSize);
+      return `${totalCount}개 품목 · ${start}-${end}번째 (${page}/${totalPages}페이지)`;
     }
     function groupSortRows(rows, qtyKey) {
       const groups = new Map();
@@ -3018,7 +3050,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       groupArr.sort((a, b) => Math.max(...b.map(r => r[qtyKey])) - Math.max(...a.map(r => r[qtyKey])));
       return groupArr.reduce((acc, g) => acc.concat(g), []);
     }
-    function buildItemBlock(kindFilter, limit, groupSort) {
+    function buildItemBlock(kindFilter, pageSize, groupSort, page) {
       // 2026-08-26 갱신(14차): kindFilter==='ACC'일 때는 브랜드·카테고리·구분·제품 필터는 그대로 matchesTm/
       // matchesPinned에 맡기되(series 인자는 ['전체']로 건너뛰어 내부 체크를 비활성화), 시리즈만 accSeriesMatches
       // (품목명 기반 추론)로 별도 확인한다 — 로봇청소기 ACC 대부분의 series 필드가 실제 시리즈명이 아니라
@@ -3035,14 +3067,15 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         if (!matchesPinned(u, brand, category, ['전체'], '전체', product)) return false;
         return kindFilter === 'ACC' ? accSeriesMatches(u, series) : inSel(u.series, series);
       });
-      let headSuffix, legendHtml, bodyHtml;
+      let headSuffix, legendHtml, bodyHtml, pageInfo;
       if (singleWarehouse && PARTNER_SIDE.includes(singleWarehouse)) {
         const scoped = pinnedK.filter(u => u.source === singleWarehouse);
         const sortedScoped = scoped.filter(u=>u.cur>0).sort((a,b) => b.cur - a.cur);
         const orderedScoped = groupSort ? groupSortRows(sortedScoped, 'cur') : sortedScoped;
-        const rows = sliceLimit(orderedScoped, limit);
+        pageInfo = paginateRows(orderedScoped, pageSize, page);
+        const rows = pageInfo.rows;
         const seg = SEG_OF_WAREHOUSE[singleWarehouse];
-        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(scoped.length, rows.length)}`;
+        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(pageInfo.totalCount, pageSize, pageInfo.page, pageInfo.totalPages)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse} <span class="pin-dot"></span></span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.cur));
@@ -3067,8 +3100,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
           .filter(r => r.val > 0)
           .sort((a,b) => b.val - a.val);
         const orderedRows = groupSort ? groupSortRows(sortedRows, 'val') : sortedRows;
-        const rows = sliceLimit(orderedRows, limit);
-        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(idxsK.length, rows.length)}`;
+        pageInfo = paginateRows(orderedRows, pageSize, page);
+        const rows = pageInfo.rows;
+        headSuffix = `(${singleWarehouse}) · ${itemCountPhrase(pageInfo.totalCount, pageSize, pageInfo.page, pageInfo.totalPages)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse}</span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.val));
@@ -3093,8 +3127,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
           .filter(r => r.val > 0)
           .sort((a,b) => b.val - a.val);
         const orderedRows = groupSort ? groupSortRows(sortedRows, 'val') : sortedRows;
-        const rows = sliceLimit(orderedRows, limit);
-        headSuffix = `(입고예정(당월)) · ${itemCountPhrase(idxsK.length, rows.length)}`;
+        pageInfo = paginateRows(orderedRows, pageSize, page);
+        const rows = pageInfo.rows;
+        headSuffix = `(입고예정(당월)) · ${itemCountPhrase(pageInfo.totalCount, pageSize, pageInfo.page, pageInfo.totalPages)}`;
         legendHtml = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE['입고예정']})"></i>입고예정(당월)</span>`;
         bodyHtml = rows.length === 0 ? '<p class="empty-note">해당 조건에 재고 데이터가 없습니다.</p>' : (() => {
           const max = Math.max(...rows.map(r=>r.val));
@@ -3152,7 +3187,8 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         const pool = tmRows.concat(partnerRows);
         const sortedPool = pool.slice().sort((a, b) => b.qty - a.qty);
         const orderedPool = groupSort ? groupSortRows(sortedPool, 'qty') : sortedPool;
-        const rows = sliceLimit(orderedPool, limit);
+        pageInfo = paginateRows(orderedPool, pageSize, page);
+        const rows = pageInfo.rows;
         // 2026-08-28 추가(31차-3, 갱신 31차-5, 사용자 지시): "입고예정이 막대그래프 제일 오른쪽, 그다음이
         // 수입창고" — 위 mergeRow에서 TM 쪽 segs(tm/pl/imp/fc/un)와 파트너 쪽 seg(ub/we/wa)를 단순 concat하면
         // imp·fc·un이 파트너 세그먼트보다 앞에(중간에) 그려질 수 있으므로, 최종 표시 직전에 seg-imp·seg-fc·
@@ -3174,7 +3210,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         const scopeLabel = looksFullAll
           ? (presentSources.length === fullSourceCount || presentSources.length === 0 ? '전체 창고' : presentSources.join('+'))
           : activeSources.join('+');
-        headSuffix = `(${scopeLabel}) · ${itemCountPhrase(pool.length, rows.length)}`;
+        headSuffix = `(${scopeLabel}) · ${itemCountPhrase(pageInfo.totalCount, pageSize, pageInfo.page, pageInfo.totalPages)}`;
         let legendSources = looksFullAll && presentSources.length ? presentSources : activeSources;
         // 2026-08-28 갱신(31차-5, 사용자 지시): 범례(주석) 표시 순서도 막대그래프 구간 순서와 맞춰 수입창고 →
         // 입고예정 순으로 맨 뒤에 오도록 재배열한다(2026-08-31 갱신 35차: 미발주를 입고예정 다음 맨 뒤로 추가).
@@ -3195,21 +3231,53 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
           }).join('');
         })();
       }
-      return { headSuffix, legendHtml, bodyHtml };
+      return { headSuffix, legendHtml, bodyHtml, totalCount: pageInfo.totalCount, totalPages: pageInfo.totalPages, page: pageInfo.page };
+    }
+
+    // 2026-09-04 추가(사용자 지시: "화면상 스크롤외 페이지를 만들어서 나머지 품목도 보여지도록 해줘") —
+    // buildItemBlock이 계산한 totalPages/page를 바탕으로 이전/다음 + 페이지 번호 버튼 HTML을 만든다.
+    // 페이지가 많을 때 버튼이 너무 늘어나지 않도록 현재 페이지 좌우 2개씩만 숫자 버튼을 보여주고, 처음·
+    // 마지막 페이지는 항상 보여주되 사이는 "…"으로 생략한다(흔한 페이지네이션 UI 패턴). totalPages<=1이면
+    // 빈 문자열을 반환해 페이지네이션 바 자체가 보이지 않게 한다(품목이 한 페이지에 다 들어가는 경우).
+    function buildPaginationHtml(page, totalPages) {
+      if (totalPages <= 1) return '';
+      const btn = (p, label, disabled, active) =>
+        `<button type="button" class="ipg-btn${active ? ' active' : ''}" data-page="${p}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+      const nums = [];
+      const WINDOW = 2;
+      let start = Math.max(1, page - WINDOW);
+      let end = Math.min(totalPages, page + WINDOW);
+      if (start > 1) {
+        nums.push(btn(1, '1', false, page === 1));
+        if (start > 2) nums.push('<span class="ipg-ellipsis">…</span>');
+      }
+      for (let p = start; p <= end; p++) nums.push(btn(p, String(p), false, p === page));
+      if (end < totalPages) {
+        if (end < totalPages - 1) nums.push('<span class="ipg-ellipsis">…</span>');
+        nums.push(btn(totalPages, String(totalPages), false, page === totalPages));
+      }
+      return btn(page - 1, '‹ 이전', page <= 1, false) + nums.join('') + btn(page + 1, '다음 ›', page >= totalPages, false);
     }
 
     // 2026-09-03 갱신(사용자 지시): 상위 20개 고정 대신, 사용자가 고른 표시 개수(itemListLimit, 10/50/100)
     // 만큼 상위순서 그대로 보여준다 — 위 let itemListLimit 선언부/아래 #item-limit-select 버튼 핸들러 참고.
-    // 2026-09-04 갱신(사용자 지시): "전체" 옵션 추가 + 브랜드-카테고리-시리즈 그룹 정렬 적용(groupSort=true).
+    // 2026-09-04 갱신(사용자 지시): 브랜드-카테고리-시리즈 그룹 정렬 적용(groupSort=true).
     // [ACC] 상위 5개 목록은 기존처럼 그룹 정렬 없이 단순 수량순 유지(groupSort=false).
-    const completeBlock = buildItemBlock('완제품', itemListLimit, true);
+    // 2026-09-04 재갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
+    // 만들어서 나머지 품목도 보여지도록 해줘") — itemListLimit은 이제 "페이지당 개수"이고 itemListPage(현재
+    // 페이지)를 함께 넘긴다. buildItemBlock이 돌려준 page(필터가 바뀌어 범위를 벗어나면 자동 보정된 값)를
+    // 다시 itemListPage에 반영해두어야, 다음 클릭 때도 어느 페이지에 있었는지 어긋나지 않는다. 페이지네이션
+    // 버튼은 #item-list-pagination에 그려 넣고, 클릭 핸들러는 boot()의 위임(delegation) 리스너 참고.
+    const completeBlock = buildItemBlock('완제품', itemListLimit, true, itemListPage);
+    itemListPage = completeBlock.page;
     document.getElementById('item-list-head').textContent = `[본품] 품목별 잔여재고 ${completeBlock.headSuffix}`;
     document.getElementById('item-bars').innerHTML = completeBlock.bodyHtml;
     document.getElementById('item-legend').innerHTML = completeBlock.legendHtml;
+    document.getElementById('item-list-pagination').innerHTML = buildPaginationHtml(completeBlock.page, completeBlock.totalPages);
 
     const accItemBlockEl = document.getElementById('acc-item-block');
     if (kindMode === '전체') {
-      const accBlock = buildItemBlock('ACC', 5, false);
+      const accBlock = buildItemBlock('ACC', 5, false, 1);
       accItemBlockEl.style.display = '';
       document.getElementById('acc-item-list-head').textContent = `[ACC] 품목별 잔여재고 ${accBlock.headSuffix}`;
       document.getElementById('acc-item-bars').innerHTML = accBlock.bodyHtml;
@@ -3761,28 +3829,42 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
 
   // 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — [본품] 품목별 잔여재고 표시 개수를
   // 10/50/100 중에서 선택). 버튼을 누르면 itemListLimit을 바꾸고 render()를 다시 호출해 buildItemBlock의
-  // limit이 반영되도록 한다(위 let itemListLimit 선언부/buildItemBlock 호출부 참고).
-  // 2026-09-04 갱신: data-limit="all"(전체) 버튼 추가에 맞춰 'all'은 문자열 그대로, 나머지(10/50/100)는
-  // 숫자로 파싱한다.
-  function parseItemLimitValue(raw) {
-    return raw === 'all' ? 'all' : parseInt(raw, 10);
-  }
+  // pageSize가 반영되도록 한다(위 let itemListLimit 선언부/buildItemBlock 호출부 참고).
+  // 2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
+  // 만들어서 나머지 품목도 보여지도록 해줘") — 'all'(전체) 값은 없앴다. 페이지당 개수를 바꾸면 페이지 구간이
+  // 통째로 달라지므로 itemListPage를 1로 되돌린다(안 그러면 예를 들어 10개 보기 3페이지째에 있다가 100개
+  // 보기로 바꿨을 때 엉뚱한 위치에 남는다).
   function syncItemLimitButtons() {
     document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
-      b.classList.toggle('active', parseItemLimitValue(b.dataset.limit) === itemListLimit);
+      b.classList.toggle('active', parseInt(b.dataset.limit, 10) === itemListLimit);
     });
   }
   document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
     b.addEventListener('click', () => {
-      const v = parseItemLimitValue(b.dataset.limit);
+      const v = parseInt(b.dataset.limit, 10);
       if (v === itemListLimit) return;
       itemListLimit = v;
+      itemListPage = 1;
       try { localStorage.setItem('tw_item_limit', String(v)); } catch (e) {}
       syncItemLimitButtons();
       render();
     });
   });
   syncItemLimitButtons();
+
+  // 2026-09-04 추가(사용자 지시: "화면상 스크롤외 페이지를 만들어서 나머지 품목도 보여지도록 해줘") —
+  // #item-list-pagination은 render()가 호출될 때마다 buildPaginationHtml()로 통째로 새로 그려지므로(위
+  // esum 타일 클릭 리스너와 동일한 이유), 개별 버튼에 직접 리스너를 달지 않고 정적인 부모 컨테이너에
+  // 위임(delegation) 리스너 하나만 둔다. disabled 버튼(맨 처음/맨 끝에서의 이전/다음)은 클릭돼도 브라우저가
+  // 애초에 click 이벤트를 안 보내므로 별도 방어 코드가 필요 없다.
+  document.getElementById('item-list-pagination').addEventListener('click', (e) => {
+    const btn = e.target.closest('.ipg-btn[data-page]');
+    if (!btn) return;
+    const p = parseInt(btn.dataset.page, 10);
+    if (!p || p === itemListPage) return;
+    itemListPage = p;
+    render();
+  });
 
   // 2026-09-03 추가(사용자 지시: "항목별 설명문구는 처음부터 화면상 보여주니 너무 자리를 많이 차지해
   // 복잡하게 보여서 항목 설명이라는 버튼을 클릭하면 해당 항목에 대한 설명을 볼수 있도록 추가") — 여러
