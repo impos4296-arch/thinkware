@@ -1421,12 +1421,16 @@
           <div class="item-list-head-row">
             <h3 id="item-list-head">[본품] 품목별 잔여재고 (전체 창고)</h3>
             <!-- 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — 전체 품목을 상위순서 유지한
-                 채 모두 보여주되, 10/50/100개 중 표시 개수를 선택하는 기능 추가). 클릭 핸들러/기본값 복원은
-                 boot() 쪽 아래 참고(localStorage: tw_item_limit).
+                 채 모두 보여주되, 10/50/100개 중 표시 개수를 선택하는 기능 추가). 클릭 핸들러는 boot() 쪽
+                 아래 참고.
                  2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외
                  페이지를 만들어서 나머지 품목도 보여지도록 해줘") — 10/50/100은 이제 "페이지당 표시 개수"이고,
                  나머지 품목은 아래 #item-list-pagination의 페이지 번호 버튼으로 넘겨본다. 조회된 품목은
-                 페이지를 넘기면 결국 전부 보이므로 별도 "전체" 옵션은 없앴다. -->
+                 페이지를 넘기면 결국 전부 보이므로 별도 "전체" 옵션은 없앴다.
+                 2026-09-04 재갱신(사용자 지시: "페이지당 표기 개수의 기본 선택값은 10개로" → "항상 10개로
+                 고정" 채택) — 예전엔 마지막 선택을 localStorage(tw_item_limit)에 저장해 새로고침 후에도
+                 유지했으나, 이 저장을 없애 새로고침·재방문 때는 항상 10개로 시작하도록 바꿨다(let itemListLimit
+                 선언부 참고). -->
             <div class="item-limit-select" id="item-limit-select">
               <span class="ils-label">페이지당 표시 개수</span>
               <button type="button" class="ils-btn" data-limit="10">10개</button>
@@ -2038,18 +2042,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
   // 2026-09-03 추가(사용자 지시: "대쉬보드 항목별 위치 조정" 3번 — [본품] 품목별 잔여재고를 예전처럼
-  // 상위 20개로 자르지 않고, 10/50/100개 중 사용자가 고른 개수만큼 상위순서 그대로 보여준다). 화면을
-  // 새로고침해도 마지막으로 고른 개수가 유지되도록 localStorage에 저장한다. 버튼 클릭 핸들러는 아래
-  // boot() 쪽 #item-limit-select 설정 부분 참고.
+  // 상위 20개로 자르지 않고, 10/50/100개 중 사용자가 고른 개수만큼 상위순서 그대로 보여준다). 버튼 클릭
+  // 핸들러는 아래 boot() 쪽 #item-limit-select 설정 부분 참고.
   // 2026-09-04 갱신(사용자 지시: "10개 50개 100개 선택 기능은 유지해주고 ... 화면상 스크롤외 페이지를
   // 만들어서 나머지 품목도 보여지도록 해줘") — 한때 있었던 문자열 'all'(전체) 값은 없앴다. 이제
   // itemListLimit은 항상 10/50/100 중 하나이며 "페이지당 표시 개수"로 쓰인다 — 조회된 전체 품목은
   // itemListPage(현재 페이지)를 넘겨가며 다 볼 수 있다(buildItemBlock의 paginateRows 참고).
+  // 2026-09-04 재갱신(사용자 지시: "페이지당 표기 개수의 기본 선택값은 10개로" → 확인 질문에서 "항상
+  // 10개로 고정" 채택) — 예전엔 마지막으로 고른 개수를 localStorage(tw_item_limit)에 저장해 새로고침
+  // 후에도 유지했으나, 이제 저장을 완전히 없애 새로고침·재방문 때마다 항상 10개로 시작한다(같은 세션 안에서
+  // 버튼을 눌러 50/100으로 바꾸는 것 자체는 그대로 동작하되, 그 값이 다음 방문까지 이어지지는 않는다).
   let itemListLimit = 10;
-  try {
-    const savedLimit = parseInt(localStorage.getItem('tw_item_limit'), 10);
-    if ([10, 50, 100].includes(savedLimit)) itemListLimit = savedLimit;
-  } catch (e) {}
   let itemListPage = 1;
   // 2026-09-03 추가(커밋 #85, 사용자 지시): fillProduct()가 "제품" 후보 목록을 만들 때마다 각 후보(canonical
   // 품목명)가 완제품인지 ACC인지 함께 기록해두는 맵 — elProduct의 change 리스너가 "ACC 품목을 선택했을 때
@@ -3834,6 +3837,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 만들어서 나머지 품목도 보여지도록 해줘") — 'all'(전체) 값은 없앴다. 페이지당 개수를 바꾸면 페이지 구간이
   // 통째로 달라지므로 itemListPage를 1로 되돌린다(안 그러면 예를 들어 10개 보기 3페이지째에 있다가 100개
   // 보기로 바꿨을 때 엉뚱한 위치에 남는다).
+  // 2026-09-04 재갱신(사용자 지시: "페이지당 표기 개수의 기본 선택값은 10개로" → "항상 10개로 고정" 채택) —
+  // localStorage 저장을 없애 새로고침·재방문 때는 항상 10개로 시작하게 했다(같은 세션 안에서 버튼으로
+  // 바꾸는 것 자체는 그대로 동작).
   function syncItemLimitButtons() {
     document.querySelectorAll('#item-limit-select .ils-btn').forEach(b => {
       b.classList.toggle('active', parseInt(b.dataset.limit, 10) === itemListLimit);
@@ -3845,7 +3851,6 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       if (v === itemListLimit) return;
       itemListLimit = v;
       itemListPage = 1;
-      try { localStorage.setItem('tw_item_limit', String(v)); } catch (e) {}
       syncItemLimitButtons();
       render();
     });
