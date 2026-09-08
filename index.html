@@ -1351,11 +1351,16 @@
 
       <!-- 2026-09-07 갱신(사용자 지시: "조회는 이전일도 조회할 수 있도록... 단, 조회의 마지막은 가장
            마지막으로 업데이트한 날짜까지만" -> 확인 질문 결과 "지난달(8월) 데이터까지 거슬러서" 채택) —
-           슬라이더의 value는 더 이상 "이번 달의 날짜(day-of-month)"가 아니라 TM_DATA.days에 실제로 존재하는
-           날짜 목록(dayKeys, 오래된 순으로 정렬된 "YYYY-MM-DD" 배열)의 인덱스다. min=0(가장 오래된 날짜),
-           max=dayKeys.length-1(가장 마지막으로 업데이트된 날짜) — 월 경계와 무관하게 데이터가 실제로 있는
-           만큼만 자연스럽게 넓어지고, 미래 날짜는 애초에 dayKeys에 없으므로 구조적으로 선택이 불가능하다.
-           boot() 쪽 슬라이더 초기화부(elDate.min/max/value)와 datalist 눈금 생성부 참고. -->
+           슬라이더의 value는 더 이상 "이번 달의 날짜(day-of-month)"가 아니라 날짜 목록(dayKeys, 오래된 순으로
+           정렬된 "YYYY-MM-DD" 배열)의 인덱스다. min=0(가장 오래된 날짜), max=dayKeys.length-1(가장 마지막으로
+           업데이트된 날짜) — 월 경계와 무관하게 데이터가 실제로 있는 만큼만 자연스럽게 넓어지고, 미래 날짜는
+           애초에 dayKeys에 없으므로 구조적으로 선택이 불가능하다.
+           2026-09-08 갱신(사용자 지시: "업로드한 파일중 가장 늦은 날짜까지 조회할수 있도록") — dayKeys는
+           TM_DATA.days만이 아니라 UBUS/위니온/세탁기(SOURCE_DAYS)까지 합친 합집합이라, 슬라이더 max는
+           이제 "업로드된 어느 소스든 데이터가 있는 가장 늦은 날짜"까지 늘어난다(TM이 아직 그 날짜까지
+           갱신되지 않았어도 선택 가능 — TM 관련 수치는 가장 가까운 실제 TM 데이터로 자동 대체 표시되고,
+           그 사실이 #date-nodata-note에 안내된다). boot() 쪽 슬라이더 초기화부(elDate.min/max/value)와
+           datalist 눈금 생성부, dayKeys/tmDayArr 선언부 참고. -->
       <div class="date-row">
         <label for="f-date">조회일자</label>
         <input type="range" id="f-date" min="0" max="0" value="0" step="1" list="f-date-ticks">
@@ -1697,7 +1702,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     if (!cls) return null;
     let total = 0;
     let matchedAny = false;
-    const latest = days[maxDate] || [];
+    const latest = days[tmMaxDate] || [];
     const req = cls.require || [], exc = cls.exclude || [];
     // matchTest가 있는 항목(예: 세정제 — TM/UBUS 표기가 서로 달라 단순 문자열 포함 매칭으로는 못 잡음)은
     // require/exclude 대신 그 함수로 판별한다.
@@ -1738,7 +1743,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     if (!cls) return null;
     let total = 0;
     let matchedAny = false;
-    const latest = days[maxDate] || [];
+    const latest = days[tmMaxDate] || [];
     items.forEach((it, i) => {
       if (it.kind !== '완제품') return;
       if (it.brand !== cls.brand) return;
@@ -1779,8 +1784,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 일치)에서 코드(code) 매칭으로 재정렬해 이번에 합쳐 넣었다 — 앞으로 매달 새 데이터를 반영할 때는 이제
   // 절대 days/dayInbound/SOURCE_DAYS 객체를 통째로 교체하지 말고, 새 날짜의 "YYYY-MM-DD" 키를 기존 객체에
   // 계속 추가(append)할 것(그래야 이번에 되살린 과거 조회 기능이 다음 달에도 끊기지 않는다).
-  const dayKeys = Object.keys(days).sort();
+  // 2026-09-08 갱신(사용자 지시: "업로드한 파일중 가장 늦은 날짜까지 조회할수 있도록 해줘") — 예전엔
+  // dayKeys가 TM_DATA.days의 날짜만 기준으로 삼아서, UBUS/위니온/세탁기 등 파트너 창고가 TM보다 먼저
+  // 갱신된 날짜(예: TM은 9/4까지만 있는데 UBUS는 9/6까지 있는 경우)는 조회일자 슬라이더로 아예 선택할 수
+  // 없었다(슬라이더 max가 TM의 마지막 날짜에서 멈춤). 이제 TM_DATA.days뿐 아니라 SOURCE_DAYS(ubus/weione/
+  // washer) 전체의 날짜 키까지 합쳐(합집합) dayKeys를 구성해, "업로드된 소스 중 어느 하나라도 그 날짜의
+  // 데이터가 있으면" 슬라이더로 선택할 수 있게 한다. TM 자체창고 데이터가 아직 없는 날짜를 선택하면 TM 관련
+  // 수치(재고 현황 탭의 TM 자체창고/3PL 수량 등)는 tmDayArr()가 nearestDayKey로 찾은 "그 날짜 이전 중 가장
+  // 가까운 TM 실제 데이터"로 자동 대체 표시된다 — UBUS/위니온/세탁기가 이미 쓰던 폴백 방식(curOnDate 참고)과
+  // 원리가 같아 새로운 개념은 아니다. TM_DATA.days 자체의 마지막 날짜는 별도로 tmMaxDate에 남겨, "TM 자체창고
+  // 기준일" 표시(tmAsOf)는 여전히 TM이 실제로 갱신된 마지막 날짜를 정확히 가리키게 한다(파트너 창고 때문에
+  // 앞당겨진 전체 dayKeys의 maxDate와 혼동하지 않도록 구분).
+  const dayKeys = Array.from(new Set(
+    Object.keys(days)
+      .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.ubus) || {}))
+      .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.weione) || {}))
+      .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.washer) || {}))
+  )).sort();
   const maxDate = dayKeys[dayKeys.length - 1];
+  const tmDayKeysOnly = Object.keys(days).sort();
+  const tmMaxDate = tmDayKeysOnly[tmDayKeysOnly.length - 1];
+  // TM_DATA.days에서 특정 날짜의 스냅샷을 가져오되, 그 날짜에 TM 데이터가 없으면(파트너 창고만 갱신된
+  // 날짜) nearestDayKey로 그 이전 중 가장 가까운 실제 TM 데이터로 대체한다. days[maxDate]처럼 전체 dayKeys의
+  // 최신일을 직접 인덱싱하던 기존 코드 전부를 이 헬퍼로 교체(아래 nearestDayKey 정의는 함수 선언이라
+  // 호이스팅되므로, 실제 호출은 항상 render() 등 나중 시점에 일어나 문제없다).
+  function tmDayArr(date) {
+    const key = nearestDayKey(days, date);
+    return key != null ? days[key] : null;
+  }
   // "M/D" 형식의 짧은 라벨(추이 그래프 축/툴팁용) — 어느 달이든 그 날짜 문자열 자체에서 바로 뽑아내므로
   // 더 이상 DATA_MONTH_YEAR/DATA_MONTH_IDX 같은 "이번 달" 상수를 매달 손으로 갱신할 필요가 없다.
   function mdLabel(iso) {
@@ -1794,11 +1825,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
 
   // 2026-08-31 추가(35차-2, 사용자 지시): 상단 "기준일"을 소스별로 나열하지 않고 "파일의 날짜 기준으로
-  // 가장 늦은(최신) 날짜" 하나로 통일해서 보여준다. TM 자체창고 기준일은 TM_DATA.days의 마지막 날짜(maxDate)로
-  // 계산하고, UBUS·위니온·세탁기·입고예정은 combined JSON에 함께 실려오는 SOURCE_ASOF(소스별 실제 데이터
-  // 기준일, YYYY-MM-DD)를 그대로 쓴다. 이 값들 중 가장 늦은 날짜를 문자열 비교(ISO 형식이라 사전식 비교가
-  // 날짜 비교와 동일)로 골라 헤더의 #top-meta-date에 표시한다.
-  const tmAsOf = maxDate;
+  // 가장 늦은(최신) 날짜" 하나로 통일해서 보여준다. TM 자체창고 기준일은 TM_DATA.days의 마지막 날짜
+  // (tmMaxDate, 2026-09-08부터 파트너 창고 날짜가 섞이지 않는 TM 전용 값)로 계산하고, UBUS·위니온·세탁기·
+  // 입고예정은 combined JSON에 함께 실려오는 SOURCE_ASOF(소스별 실제 데이터 기준일, YYYY-MM-DD)를 그대로
+  // 쓴다. 이 값들 중 가장 늦은 날짜를 문자열 비교(ISO 형식이라 사전식 비교가 날짜 비교와 동일)로 골라
+  // 헤더의 #top-meta-date에 표시한다.
+  const tmAsOf = tmMaxDate;
   const asOfCandidates = [tmAsOf].concat(SOURCE_ASOF ? Object.values(SOURCE_ASOF).filter(Boolean) : []);
   const latestAsOf = asOfCandidates.reduce((a, b) => (b > a ? b : a), asOfCandidates[0]);
   const topMetaDateEl = document.getElementById('top-meta-date');
@@ -1949,7 +1981,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     brandTotals[it.brand] = (brandTotals[it.brand]||0) + extraQty;
   }
   items.forEach((it, i) => {
-    const latest = days[maxDate][i];
+    const latest = days[tmMaxDate][i];
     addToCatalog(it, latest[0] + latest[1]);
   });
   PINNED.forEach(u => addToCatalog(u, u.cur));
@@ -2435,7 +2467,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     productKindMap = {};
     items.forEach((it, i) => {
       if (!matchesTm(it, brands, categories, seriesArr, '전체', ['전체'])) return;
-      const latest = days[maxDate][i];
+      const latest = days[tmMaxDate][i];
       const key = canonicalProductName(it.name);
       nameQty[key] = (nameQty[key] || 0) + latest[0] + latest[1];
       productKindMap[key] = it.kind;
@@ -2536,7 +2568,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     let total = 0;
     items.forEach((it, i) => {
       if (!matchesTm(it, brands, categories, seriesArr, kind, ['전체'])) return;
-      const latest = days[maxDate][i];
+      const latest = days[tmMaxDate][i];
       total += latest[0] + latest[1];
     });
     PINNED.forEach(u => {
@@ -2810,20 +2842,25 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const idxs = [];
     items.forEach((it,i) => { if (matchesTm(it, brand, category, series, kindMode, product)) idxs.push(i); });
 
-    // 2026-09-07 갱신: 슬라이더 값 자체가 dayKeys의 인덱스라 hasDayData는 구조적으로 항상 true다(존재하지
-    // 않는 날짜는 애초에 인덱스로 가리킬 수 없음). 그래도 향후 데이터에 뜻밖의 빈 구멍이 생기는 경우에
-    // 대비해 안전장치(가장 최근 실제 데이터로 폴백 + #date-nodata-note 안내)는 그대로 남겨둔다.
+    // 2026-09-08 갱신(사용자 지시: "업로드한 파일중 가장 늦은 날짜까지 조회할수 있도록") — dayKeys가 이제
+    // TM_DATA.days뿐 아니라 UBUS/위니온/세탁기 날짜까지 합친 합집합이라(위 dayKeys 선언부 참고), hasDayData가
+    // 다시 false일 수 있다(예: UBUS만 갱신된 9/6을 선택하면 TM엔 그 날짜 데이터가 없음) — 이럴 때는
+    // tmDayArr(date)가 nearestDayKey로 찾아주는 "그 날짜 이전 중 가장 가까운 TM 실제 데이터"로 대체하고,
+    // 안내 문구에도 실제로 어떤 날짜의 값을 대신 보여주는지 그 날짜를 그대로 표기한다(예전처럼 항상
+    // maxDate/tmMaxDate라고 단정하지 않음 — 조회일자가 TM 데이터 시작일보다 이전이면 가장 이른 TM 날짜로
+    // 폴백될 수도 있으므로).
     const hasDayData = Object.prototype.hasOwnProperty.call(days, date);
+    const tmFallbackDate = hasDayData ? date : nearestDayKey(days, date);
     const elNoDataNote = document.getElementById('date-nodata-note');
     if (elNoDataNote) {
       if (hasDayData) {
         elNoDataNote.hidden = true;
       } else {
         elNoDataNote.hidden = false;
-        elNoDataNote.textContent = `※ 잔여재고는 ${maxDate} 기준`;
+        elNoDataNote.textContent = `※ TM 자체창고/3PL 재고는 ${tmFallbackDate} 기준`;
       }
     }
-    const dayArr = hasDayData ? days[date] : days[maxDate];
+    const dayArr = days[tmFallbackDate];
     let tmSum = 0, plSum = 0, impSum = 0;
     idxs.forEach(i => { tmSum += dayArr[i][0]; plSum += dayArr[i][1]; impSum += (items[i].imp||0); });
 
@@ -3485,13 +3522,18 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // 전체에 평평한 고정선으로 정직하게 보여주도록 변경. 창고="전체"이거나 2개 이상 선택된 경우는 기존과 동일.
     const trendTitle = document.getElementById('trend-head-title');
     let trendLabel, trendPoints, trendNow;
+    // 2026-09-08 갱신: dayKeys가 이제 TM_DATA.days뿐 아니라 파트너 창고 날짜까지 합친 합집합이라(위
+    // dayKeys 선언부 참고), 그 중 TM에는 아직 데이터가 없는 날짜(예: UBUS만 갱신된 9/6)도 섞여 있을 수
+    // 있다 — days[String(d)]를 직접 인덱싱하면 undefined가 나와 arr[i]에서 에러가 나므로, tmDayArr(d)로
+    // nearestDayKey 폴백을 거쳐 TM의 가장 최근 실제 데이터를 대신 쓴다(그 구간은 자연히 평평한 값으로
+    // 이어진다 — 파트너 창고 단독 선택 시의 스냅샷 고정선과 같은 원리).
     if (singleWarehouse === 'TM 자체창고') {
       trendLabel = 'TM 자체창고';
-      trendPoints = dayKeys.map(d => { const arr = days[String(d)]; let s = 0; idxs.forEach(i => s += arr[i][0]); return s; });
+      trendPoints = dayKeys.map(d => { const arr = tmDayArr(d); let s = 0; idxs.forEach(i => s += arr[i][0]); return s; });
       trendNow = tmSum;
     } else if (singleWarehouse === '3PL') {
       trendLabel = '3PL';
-      trendPoints = dayKeys.map(d => { const arr = days[String(d)]; let s = 0; idxs.forEach(i => s += arr[i][1]); return s; });
+      trendPoints = dayKeys.map(d => { const arr = tmDayArr(d); let s = 0; idxs.forEach(i => s += arr[i][1]); return s; });
       trendNow = plSum;
     } else if (singleWarehouse) {
       const snapVal = sumByWarehouse[singleWarehouse] || 0;
@@ -3506,7 +3548,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         + (activeSources.includes('위니온') ? weioneSum : 0) + (activeSources.includes('세탁기') ? washerSum : 0)
         + (activeSources.includes('미발주') ? unshippedSum : 0);
       trendPoints = dayKeys.map(d => {
-        const arr = days[String(d)];
+        const arr = tmDayArr(d);
         let s = 0;
         idxs.forEach(i => {
           if (tmOn) s += arr[i][0];
@@ -4049,7 +4091,7 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     }
     const fmt = n => (n == null ? '-' : Number(n).toLocaleString('ko-KR'));
     const sched = INBOUND_SCHEDULE;
-    const latestStock = days[maxDate];
+    const latestStock = days[tmMaxDate];
     // 2026-08-28 갱신(31차, 사용자 지시): "조회일자(재고 현황 탭 상단 기준일 배지와 같은 #f-date 슬라이더
     // 값)보다 이전 날짜인 입고예정 배치는(확정·미확정 무관) 이미 입항했을 것으로 보고 '입항완료(예상)'으로
     // 표기해 목록·합계에서 제외한다 — "조회 날짜가 26일인데 지난 24·25일자(미확정) 수량이 그대로 보인다"는
