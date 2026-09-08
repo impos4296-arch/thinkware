@@ -528,7 +528,22 @@
   .esum-name { font-size: 12.5px; color: var(--text-muted); margin: 0 0 5px; display:flex; align-items:center; justify-content:center; gap:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .esum-value { font-family: "Gothic A1", sans-serif; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .esum-value .unit { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-left: 1px; }
-  .pin-dot { width:6px; height:6px; border-radius:50%; background: var(--text-muted); display:inline-block; }
+  /* 2026-09-08 갱신(사용자 지시: "이 설명에 대한 표기가 눈에 확 들어오지 않고 이해하기 어려워서 … 색상을
+     달리해서 표기해주는 방식등으로 개선해줘") — UBUS/위니온/세탁기/수입창고/입고예정/미발주 6개 타일 이름
+     옆의 점(●)이 전부 같은 회색이라 "이 점이 각자 다른 의미"라는 걸 알아채기 어려웠고, 그 의미를 풀어쓴
+     esum-notes-body 문단도 한 덩어리 문장이라(UBUS·위니온·세탁기 설명과 수입창고 설명이 한 문단에 섞여
+     있고 마지막 "●표시 항목이 이에 해당합니다"가 정확히 무엇을 가리키는지 모호했음) 읽기 어려웠다. 이제
+     점 색깔을 그 창고의 기존 강조색(ACCENT_OF_WAREHOUSE, 막대그래프·범례 등 대시보드 다른 곳에서 이미 그
+     창고를 나타내던 색과 동일 — 예: UBUS는 주황, 위니온은 호박색, 세탁기는 분홍, 수입창고는 회갈색,
+     입고예정은 보라, 미발주는 갈색)로 칠해 타일마다 점이 서로 다르다는 걸 바로 알 수 있게 하고, 아래
+     .pin-legend로 그 점 색깔과 정확히 같은 색 점을 붙인 짧은 설명 3줄(날짜별 이력형 / 고정 스냅샷형 /
+     입고예정)로 재구성해 "이 색 점이 이 줄의 설명과 같은 뜻"이라는 게 한눈에 짝지어지도록 했다(자세한
+     내용은 아래 esum-notes-body 마크업과 render()의 pin-dot 인라인 style 참고). */
+  .pin-dot { width:7px; height:7px; border-radius:50%; background: var(--text-muted); display:inline-block; flex: none; }
+  .pin-legend { display:flex; flex-direction:column; gap:7px; margin: 0 0 10px; padding: 10px 12px; background: var(--surface-2); border-radius: 9px; }
+  .pin-legend-row { display:flex; align-items:flex-start; gap:8px; font-size: 12.5px; line-height:1.55; color: var(--text-secondary); margin:0; }
+  .pin-legend-row .pin-dot { margin-top: 6px; }
+  .pin-legend-row b { color: var(--text-primary); }
 
   /* 2026-09-04 갱신(사용자 지시: "선택구간 재고추이 항목과 품목별 잔여재고 항목 사이 간격이 너무 딱 붙어서
      답답해 보여") — 재고추이 차트(.trend-wrap)와 바로 아래 [본품] 품목별 잔여재고 두 칸 레이아웃
@@ -1387,11 +1402,23 @@
            차지했다. 이제 기본은 접혀 있고 위 "항목 설명" 버튼을 눌러야 펼쳐진다(펼침 상태는 섹션별로
            localStorage에 저장 — 아래 boot() 쪽 setupDescToggle() 참고). -->
       <div class="esum-notes-body" id="esum-notes-body" hidden>
-        <!-- 2026-09-07 갱신(사용자 지시: "조회는 이전일도 조회할 수 있도록") — 조회일자 슬라이더가 이제
-             지난달까지 거슬러 올라갈 수 있게 되면서, "처음 데이터를 올리기 시작한 날짜 이전은 선택할 수
-             없다"는 예전 문구가 더 이상 사실이 아니게 됐다(그 이전 날짜도 선택은 되지만, 그 창고 파일이
-             아직 없던 시점이라 가장 이른 스냅샷 값이 그대로 보인다는 뜻으로 문구를 바꿨다). -->
-        <p class="ubus-pinned-note">UBUS·위니온·세탁기 재고는 매일(세탁기는 주 2회) 올라오는 파일을 그날그날 누적한 값이라, 조회일자를 바꾸면 그 값도 함께 바뀝니다(단, 그 창고의 파일이 처음 올라오기 시작한 날짜보다 이전을 선택하면 가장 이른 시점의 스냅샷 값을 대신 보여주고, 중간에 데이터가 없는 날도 가장 가까운 이전 날짜 값을 대신 보여줍니다). 수입창고는 통관이 완료되어 국내 창고로 실입고될 예정인 재고이며, 아직 일자별 이력이 없어 최신 스냅샷 값으로 고정 표시됩니다. <span class="pin-dot"></span>표시 항목이 이에 해당합니다.</p>
+        <!-- 2026-09-08 갱신(사용자 지시: 스크린샷에 빨간 박스로 표시하며 "이 설명에 대한 표기가 눈에 확
+             들어오지 않고 이해하기 어려워서" → "좀더 확실히 해당 설명에 대한 표기가 이해될수 있도록
+             색상을 달리해서 표기해주는 방식등으로 개선해줘") — 예전엔 UBUS·위니온·세탁기 설명과 수입창고
+             설명이 한 문단에 섞여 있고, 그 끝의 "●표시 항목이 이에 해당합니다"가 정확히 어느 설명을
+             가리키는지 모호했다(UBUS·위니온·세탁기·수입창고·입고예정·미발주 6개 타일 모두에 점이 붙어
+             있는데 실제로는 서로 다른 3가지 의미였음). 이제 타일 이름 옆 점을 그 창고의 기존 강조색
+             (esum 아래 render()의 pin-dot 인라인 style, 막대그래프·범례 등 다른 곳과 이미 같은 색)으로
+             칠하고, 아래 3줄짜리 범례(.pin-legend)에도 정확히 같은 색 점을 그 창고 이름 바로 옆에 붙여
+             "이 색 점 = 이 창고 = 이런 뜻"이 한 줄 안에서 바로 짝지어지도록 문장을 다시 짰다(더 이상 "이에
+             해당합니다" 같은 지시어로 뒤를 가리키지 않음). 2026-09-07 문구 갱신분(조회일자가 지난달까지
+             거슬러 올라갈 수 있게 되며 "처음 데이터를 올리기 시작한 날짜 이전은 선택할 수 없다"는 문구를
+             "그 이전을 선택하면 가장 이른 스냅샷 값을 대신 보여준다"로 바꾼 것)은 이번에도 그대로 유지. -->
+        <div class="pin-legend">
+          <p class="pin-legend-row"><span class="pin-dot" style="background:var(--accent-ubus)"></span><span class="pin-dot" style="background:var(--accent-weione)"></span><span class="pin-dot" style="background:var(--accent-washer)"></span><span><b>UBUS·위니온·세탁기</b> — 파일이 올라올 때마다(세탁기는 주 2회) 갱신되는 날짜별 이력값입니다. 조회일자를 바꾸면 이 값도 함께 바뀌며, 그 창고 파일이 아직 없던 날짜(처음 올라오기 전, 또는 중간에 빠진 날)를 선택하면 가장 가까운 이전 날짜 값을 대신 보여줍니다.</span></p>
+          <p class="pin-legend-row"><span class="pin-dot" style="background:var(--accent-import)"></span><span class="pin-dot" style="background:var(--accent-unshipped)"></span><span><b>수입창고·미발주/미출하</b> — 날짜별 이력이 없는 값입니다. 조회일자를 바꿔도 값이 바뀌지 않고, 항상 가장 최근에 올라온 파일 기준 수치가 고정으로 표시됩니다(수입창고=통관완료·실입고 대기 재고, 미발주/미출하=중국 발주계약 중 미발주 또는 미출하 수량).</span></p>
+          <p class="pin-legend-row"><span class="pin-dot" style="background:var(--accent-forecast)"></span><span><b>입고예정(당월)</b> — 실제 보유 재고가 아니라 상단 기준일이 속한 달의 예상 입고 수량입니다(조회일자와도 무관 · 자세한 조건은 바로 아래 문단 참고).</span></p>
+        </div>
         <!-- 2026-08-28 추가(28차/29차, 사용자 지시): "입고예정"을 창고 개념으로 추가한 것에 대한 안내 —
              실제 보유 재고가 아닌 입고예정 탭 기준 예상 수치이므로 점선 테두리로 구분 표시된다.
              29차 갱신: "입고예정 수량은 입고시기가 당월에 해당되는 수량만 보여줘"(사용자 지시) — 입고예정
@@ -1402,7 +1429,9 @@
              "전체" 대신 입고예정을 제외한 실창고 6개가 개별 선택된 상태로 시작해(합계·타일 강조는 예전과 동일),
              창고 목록에서 "전체"를 다시 선택했을 때만(또는 "입고예정"을 다른 창고와 함께 명시적으로 선택했을
              때) 입고예정(당월) 수량이 "선택 조건 합계"와 [본품]/[ACC] 품목별 목록에 더해진다. 다만 일자별 이력이
-             없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다. -->
+             없는 예상치라 추이 그래프·주요 재고 알림에는 여전히 반영되지 않는다.
+             2026-09-08 갱신: 위 .pin-legend 세 번째 줄이 이 문단을 한 줄로 미리 요약해 보여주므로, 이 문단은
+             그 요약 다음에 오는 "자세한 조건" 역할로 이어진다(중복이 아니라 요약→상세 구조). -->
         <p class="ubus-pinned-note forecast-note">"입고예정"은 실제 보유 재고가 아니라 상단 기준일이 속한 달(당월) 입고예정 수량만 반영한 예상 수치입니다(입고예정 탭의 다른 달·미정 물량은 제외 · 조회일자 슬라이더와는 무관). 창고 목록에서 "전체"를 선택하거나 "입고예정"을 직접 선택했을 때만 위 "선택 조건 합계"와 아래 [본품]/[ACC] 품목별 목록에 더해지며(최초 화면 기본값은 입고예정 제외), 추이 그래프·주요 재고 알림에는 반영되지 않습니다.</p>
         <!-- 2026-08-31 추가(사용자 지시: "세탁기는 주 2회, 입고예정은 주 1회 — 해당 항목은 별도 주석이
              필요할거 같아"): 창고마다 원본 파일 갱신 주기가 달라 같은 조회일자를 봐도 최신성이 다르다는 점을
@@ -2924,12 +2953,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     esum.innerHTML = `
       <div class="${tileClass('TM 자체창고')}" data-warehouse="TM 자체창고"><p class="esum-name">TM 자체창고</p><p class="esum-value">${fmt(tmTile)}<span class="unit">개</span></p></div>
       <div class="${tileClass('3PL')}" data-warehouse="3PL"><p class="esum-name">3PL</p><p class="esum-value">${fmt(plTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('UBUS')}" data-warehouse="UBUS"><p class="esum-name">UBUS <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('위니온')}" data-warehouse="위니온"><p class="esum-name">위니온 <span class="pin-dot" title="조회일자별로 누적된 값(파일이 올라올 때마다 갱신)"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('세탁기')}" data-warehouse="세탁기"><p class="esum-name">세탁기 <span class="pin-dot" title="조회일자별로 누적된 값 · 주 2회 갱신"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}" data-warehouse="수입창고"><p class="esum-name">수입창고 <span class="pin-dot" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음)"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}" data-warehouse="입고예정"><p class="esum-name">입고예정(당월) <span class="pin-dot" title="상단 기준일이 속한 달의 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
-      <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}" data-warehouse="미발주"><p class="esum-name">미발주/미출하 <span class="pin-dot" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 8월 31일 자료 기준"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('UBUS')}" data-warehouse="UBUS"><p class="esum-name">UBUS <span class="pin-dot" style="background:var(--accent-ubus)" title="날짜별 이력값(파일이 올라올 때마다 갱신) · 위 '항목 설명'의 첫 줄과 같은 색"></span></p><p class="esum-value">${fmt(ubusTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('위니온')}" data-warehouse="위니온"><p class="esum-name">위니온 <span class="pin-dot" style="background:var(--accent-weione)" title="날짜별 이력값(파일이 올라올 때마다 갱신) · 위 '항목 설명'의 첫 줄과 같은 색"></span></p><p class="esum-value">${fmt(weioneTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('세탁기')}" data-warehouse="세탁기"><p class="esum-name">세탁기 <span class="pin-dot" style="background:var(--accent-washer)" title="날짜별 이력값 · 주 2회 갱신 · 위 '항목 설명'의 첫 줄과 같은 색"></span></p><p class="esum-value">${fmt(washerTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('수입창고').replace('esum-tile', 'esum-tile muted')}" data-warehouse="수입창고"><p class="esum-name">수입창고 <span class="pin-dot" style="background:var(--accent-import)" title="통관완료 · 창고 실입고 예정 재고, 최신 파일 스냅샷 고정(일자별 이력 없음) · 위 '항목 설명'의 둘째 줄과 같은 색"></span></p><p class="esum-value">${fmt(impTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('입고예정').replace('esum-tile', 'esum-tile forecast')}" data-warehouse="입고예정"><p class="esum-name">입고예정(당월) <span class="pin-dot" style="background:var(--accent-forecast)" title="상단 기준일이 속한 달의 입고예정 수량, 예상 수치 · 주 1회(매주 월요일) 갱신 · 위 '항목 설명'의 셋째 줄과 같은 색"></span></p><p class="esum-value">${fmt(forecastTile)}<span class="unit">개</span></p></div>
+      <div class="${tileClass('미발주').replace('esum-tile', 'esum-tile muted')}" data-warehouse="미발주"><p class="esum-name">미발주/미출하 <span class="pin-dot" style="background:var(--accent-unshipped)" title="중국 발주계약 수량 중 미발주 또는 미출하 수량, 최신 파일 스냅샷 고정(일자별 이력 없음) · 위 '항목 설명'의 둘째 줄과 같은 색"></span></p><p class="esum-value">${fmt(unshippedTile)}<span class="unit">개</span></p></div>
       <div class="esum-tile total"><p class="esum-name">선택 조건 합계</p><p class="esum-value">${fmt(total)}<span class="unit">개</span></p></div>
     `;
     // 2026-08-28 추가(32차, 사용자 지시: 참고 대시보드 UI 구조 분석 반영): "창고" 필터 패널에도 다른
