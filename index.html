@@ -474,8 +474,26 @@
      설명이라 궁금했을때 이걸 누르면 된다고 생각할수 있게끔 버튼 만들어줘") — 버튼 텍스트 앞에 안내(정보)
      아이콘을 붙여, 이 버튼이 "이 항목의 기준·내용이 궁금할 때 누르는 것"임을 한눈에 알 수 있게 했다
      (텍스트는 아래 boot()의 setupDescToggle()에서 열림/닫힘 상태에 따라 동적으로 세팅 — 항상 아이콘 포함).
-     title 툴팁도 함께 붙여 마우스를 올렸을 때 목적이 명시적으로 보이게 했다. */
-  .desc-toggle-btn { display:inline-flex; align-items:center; gap:4px; }
+     title 툴팁도 함께 붙여 마우스를 올렸을 때 목적이 명시적으로 보이게 했다.
+     2026-09-08 갱신(사용자 지시: "항목설명 버튼도 이걸 누르면 설명이 나오겠구나를 인지할 수 있도록
+     버튼 디자인 개선해줘") — 위 아이콘 추가만으로는 부족했다: .desc-toggle-btn이 여전히 "간략히 보기" 등
+     다른 .panel-toggle-btn과 똑같은 무채색 회색 알약 모양이라, 닫혀 있을 때는 그냥 평범한 토글 버튼처럼
+     보여 "정보/설명 버튼"이라는 게 눈에 띄지 않았다. 이 대시보드는 이미 다른 곳(3PL 배지 .wh-tag.pl3,
+     .isi-match-badge.confident)에서 "옅은 파란 배경 + 파란 글자"를 정보성 뱃지 톤으로 쓰고 있어, 같은
+     톤(--accent-3pl-wash/--accent-3pl)을 재사용해 처음부터(닫힌 상태에서도) 옅은 파란 알약 버튼으로
+     보이게 했다 — 다른 회색 토글 버튼과 색으로 바로 구분되면서, "파란 = 정보/도움말"이라는 흔한 관례와도
+     맞아 "누르면 설명이 나온다"를 색만 보고도 짐작할 수 있다. 펼쳐서 열려 있을 때(.active)는 반대로 진한
+     파란 배경 + 흰 글자로 채워 지금 열려 있다는 상태 자체도 더 뚜렷하게 구분한다. 아이콘(ⓘ)도 별도
+     span(.desc-icon)으로 감싸 살짝 더 크게 키워 존재감을 더했다(아래 boot()의 setupDescToggle() 참고). */
+  .desc-toggle-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    background: var(--accent-3pl-wash);
+    border-color: var(--accent-3pl);
+    color: var(--accent-3pl);
+  }
+  .desc-toggle-btn:hover { background: var(--accent-3pl); color: #fff; border-color: var(--accent-3pl); }
+  .desc-toggle-btn.active { background: var(--accent-3pl); color: #fff; border-color: var(--accent-3pl); }
+  .desc-toggle-btn .desc-icon { font-size: 13px; line-height:1; }
   .explorer-summary {
     display: grid;
     grid-template-columns: repeat(9, 1fr);
@@ -3975,7 +3993,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       body.hidden = !open;
       // 2026-09-04 갱신(사용자 지시: 버튼을 보면 "궁금할 때 누르면 되는구나"를 바로 알 수 있게) — 열림/닫힘
       // 상태와 무관하게 항상 안내 아이콘(ⓘ)을 붙여 이 버튼이 항목 설명용임을 일관되게 드러낸다.
-      btn.textContent = open ? 'ⓘ 항목 설명 닫기' : 'ⓘ 항목 설명';
+      // 2026-09-08 갱신(사용자 지시: "항목설명 버튼도 이걸 누르면 설명이 나오겠구나를 인지할 수 있도록
+      // 버튼 디자인 개선해줘") — 아이콘을 별도 span(.desc-icon)으로 감싸 CSS에서 살짝 더 크게 키울 수
+      // 있게 했다(위 .desc-toggle-btn .desc-icon 참고). 텍스트는 고정 문자열이라 innerHTML로 바꿔도 안전.
+      btn.innerHTML = open ? '<span class="desc-icon">ⓘ</span> 항목 설명 닫기' : '<span class="desc-icon">ⓘ</span> 항목 설명';
       btn.classList.toggle('active', open);
     }
     let open = false;
