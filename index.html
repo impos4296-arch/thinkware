@@ -1565,7 +1565,7 @@
             <button type="button" class="panel-toggle-btn desc-toggle-btn" id="inbound-desc-toggle-btn" title="이 항목의 기준과 산출 방식이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
             <h3 id="inbound-list-head">제품별 이번 달 입고 수량</h3>
           </div>
-          <p class="ubus-pinned-note" id="inbound-desc-body" hidden>이번 달 누계 입고 수량입니다(조회일자 슬라이더와 무관). TM 자체창고=TM매입+교환반품, 3PL·UBUS·세탁기는 각 창고 파일의 입고 수량 기준(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
+          <p class="ubus-pinned-note" id="inbound-desc-body" hidden>TM 자체창고·3PL은 조회일자가 속한 달의 1일부터 조회일자까지 누적 입고 수량입니다(조회일자 슬라이더를 옮기면 그 달·그 날짜 기준으로 즉시 다시 계산됩니다 — 예: 8/15 선택 시 8월 1~15일 누적, 9/8 선택 시 9월 1~8일 누적). TM 자체창고=TM매입+교환반품. UBUS·세탁기는 창고 파일 자체에 날짜별 입고 이력이 없어(최신 파일이 올라올 때만 갱신되는 누계 값) 조회일자와 무관하게 최신 파일 기준 값을 그대로 보여줍니다(B급/특가 재고 제외). 위니온·수입창고는 입고 데이터가 없어 표시되지 않습니다. 신규 입고 품목은 왼쪽의 "NEW" 박스에서 따로 확인할 수 있습니다 — TM·3PL은 조회일자 그 날짜의 정확한 입고량이고, UBUS·위니온은 원본 파일에 일자별 입고 이력이 없어 직전 데이터 갱신 시점 대비 재고가 실제로 늘어난 품목만 그 증가분으로 표시됩니다(재고가 늘지 않았다면 표시되지 않으며, 세탁기·수입창고는 비교할 이전 재고 데이터가 없어 제외).</p>
           <div class="legend-sticky-wrap">
             <div class="legend-mini legend-sticky" id="inbound-legend"></div>
             <div class="chart-wrap" id="inbound-chart-wrap">
@@ -2940,6 +2940,34 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const date = dayKeys[Number(elDate.value)];
     elDateBadge.textContent = date;
 
+    // 2026-09-09 추가(사용자 지시: "조회날짜가 8/15로 선택했을 경우 제품별 8월기준(8/1~8/15) 입고수량으로,
+    // 조회날짜가 9/8로 선택했을 경우 제품별 9월기준(9/1~9/8) 입고수량으로 — 조회 날짜에 월기준으로 보여주되
+    // 일자까지의 입고수량이 몇개인지 보여주도록"): 예전엔 "제품별 이번 달 입고 수량"이 TM_DATA.items의
+    // 정적 스칼라(inTm/inPl, 파싱 시점의 실제 달력월 누계로 한 번만 계산됨)를 그대로 써서 조회일자 슬라이더와
+    // 완전히 무관했다(#inbound-desc-body에 그렇게 명시돼 있었음). TM_DATA.dayInbound에는 날짜별 [tmIn,plIn]
+    // 쌍이 있으므로(8/1부터 오늘까지, 19차에서 추가), 조회일자(date)와 "연-월"이 같은 날짜만 걸러 1일부터
+    // 조회일자까지 품목별로 다시 합산해 매 render()마다(조회일자를 옮길 때마다) 새로 계산한다 — 월 경계를
+    // 넘어가도(예: 8/31→9/1) date.slice(0,8)("YYYY-MM-")로 그 달만 정확히 골라내므로 안전하다.
+    // UBUS·세탁기(PARTNER_SIDE)는 파트너 창고 파일 자체가 날짜별 이력이 아니라 파일이 새로 올라올 때만
+    // 갱신되는 누계 한 값(u.inbound)만 주므로 이 방식을 적용할 수 없다 — 최신 파일 값을 그대로 두고
+    // #inbound-desc-body 안내 문구로 구분해 설명한다(아래 두 분기에서만 mtdTmIn/mtdPlIn을 사용).
+    const mtdMonthPrefix = date.slice(0, 8); // "YYYY-MM-"
+    const mtdDays = dayKeys.filter(d => d.startsWith(mtdMonthPrefix) && d <= date);
+    const mtdTmIn = new Array(items.length).fill(0);
+    const mtdPlIn = new Array(items.length).fill(0);
+    mtdDays.forEach(d => {
+      const di = dayInbound[d];
+      if (!di) return;
+      for (let i = 0; i < di.length; i++) {
+        const pair = di[i];
+        if (!pair) continue;
+        mtdTmIn[i] += pair[0] || 0;
+        mtdPlIn[i] += pair[1] || 0;
+      }
+    });
+    const mtdMonthLabel = `${Number(date.slice(5, 7))}월`;
+    const mtdRangeLabel = `${mtdMonthLabel}(${mdLabel(mtdDays[0] || date)}~${mdLabel(date)})`;
+
     const idxs = [];
     items.forEach((it,i) => { if (matchesTm(it, brand, category, series, kindMode, product)) idxs.push(i); });
 
@@ -3557,19 +3585,24 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
         .map(u => ({ name: u.name, qty: u.inbound, segs: [{ cls: seg, val: u.inbound }] }))
         .sort((a,b) => b.qty - a.qty)
         .slice(0, 20);
-      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${singleWarehouse})`;
+      // 2026-09-09 갱신: UBUS/세탁기는 파일 자체에 날짜별 입고 이력이 없어(최신 파일 기준 누계 한 값만
+      // 존재) 조회일자 기준 월간 누적으로 바꿀 수 없다 — 라벨에 "최신 파일 기준"을 명시해 TM/3PL(조회일자
+      // 연동)과 구분되게 한다.
+      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${singleWarehouse} · 최신 파일 기준)`;
       inboundLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse} 입고</span>`;
       renderInboundChart(rows, '이번 달 입고 내역이 없습니다.');
     } else if (singleWarehouse === 'TM 자체창고' || singleWarehouse === '3PL') {
-      const key = singleWarehouse === 'TM 자체창고' ? 'inTm' : 'inPl';
+      // 2026-09-09 갱신(사용자 지시): 정적 스칼라(items[i].inTm/inPl) 대신 조회일자 기준 월-1일~조회일자
+      // 누적(mtdTmIn/mtdPlIn, 위 render() 상단에서 매번 재계산)을 사용한다.
+      const mtdArr = singleWarehouse === 'TM 자체창고' ? mtdTmIn : mtdPlIn;
       const seg = SEG_OF_WAREHOUSE[singleWarehouse];
-      const rows = idxs.filter(i => !isGraded(items[i].name)).map(i => ({ name: items[i].name, qty: items[i][key]||0, segs: [{ cls: seg, val: items[i][key]||0 }] }))
+      const rows = idxs.filter(i => !isGraded(items[i].name)).map(i => ({ name: items[i].name, qty: mtdArr[i]||0, segs: [{ cls: seg, val: mtdArr[i]||0 }] }))
         .filter(r => r.qty > 0)
         .sort((a,b) => b.qty - a.qty)
         .slice(0, 20);
-      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${singleWarehouse})`;
+      inboundListHead.textContent = `제품별 ${mtdRangeLabel} 입고 수량 (${singleWarehouse})`;
       inboundLegend.innerHTML = `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[singleWarehouse]})"></i>${singleWarehouse} 입고</span>`;
-      renderInboundChart(rows, '이번 달 입고 내역이 없습니다.');
+      renderInboundChart(rows, `${mtdRangeLabel} 입고 내역이 없습니다.`);
     } else {
       // 창고="전체" 이거나 2개 이상의 창고가 동시에 선택된 경우(2026-08-26 갱신): activeSources 중 입고
       // 데이터가 있는 소스(TM 자체창고/3PL/UBUS/세탁기)만 통합해서 보여준다. 위니온·수입창고는 애초에 입고
@@ -3579,10 +3612,12 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const tmOn = activeSources.includes('TM 자체창고'), plOn = activeSources.includes('3PL');
       const ubusOn = activeSources.includes('UBUS'), washerOn = activeSources.includes('세탁기');
       const anyTmSide = tmOn || plOn;
+      // 2026-09-09 갱신(사용자 지시): items[i].inTm/inPl(정적 스칼라, 파싱 시점 실제 달력월 누계 고정값)
+      // 대신 mtdTmIn/mtdPlIn(조회일자 기준 월-1일~조회일자 누적, 위 render() 상단 참고)을 사용한다.
       const tmRows = anyTmSide ? idxs
         .filter(i => items[i].major !== '세탁건조기' && !isGraded(items[i].name))
         .map(i => {
-          const inTm = tmOn ? (items[i].inTm || 0) : 0, inPl = plOn ? (items[i].inPl || 0) : 0;
+          const inTm = tmOn ? (mtdTmIn[i] || 0) : 0, inPl = plOn ? (mtdPlIn[i] || 0) : 0;
           return {
             name: items[i].name, qty: inTm + inPl,
             segs: [{ cls: 'seg-tm', val: inTm }, { cls: 'seg-pl', val: inPl }],
@@ -3608,10 +3643,10 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       const inboundScopeLabel = looksFullAll
         ? (presentInboundSources.length === inboundScopeSources.length || presentInboundSources.length === 0 ? '전체 창고' : presentInboundSources.join('+'))
         : activeSources.join('+');
-      inboundListHead.textContent = `제품별 이번 달 입고 수량 (${inboundScopeLabel})`;
+      inboundListHead.textContent = `제품별 ${mtdRangeLabel} 입고 수량 (${inboundScopeLabel})`;
       const inboundLegendSources = looksFullAll && presentInboundSources.length ? presentInboundSources : inboundScopeSources;
       inboundLegend.innerHTML = inboundLegendSources.map(w => `<span><i style="background:var(${ACCENT_OF_WAREHOUSE[w]})"></i>${w}</span>`).join('');
-      renderInboundChart(rows, '이번 달 입고 내역이 없습니다.');
+      renderInboundChart(rows, `${mtdRangeLabel} 입고 내역이 없습니다.`);
     }
 
     // trend — 창고=전체일 때는 전체 창고(TM+3PL 일별 변동분 + 수입창고/UBUS/위니온/세탁기 스냅샷 고정 합계) 기준으로
