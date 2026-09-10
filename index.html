@@ -392,17 +392,21 @@
      사실을 이 note로 명시해 숫자가 왜 그날짜에서 안 바뀌는지 헷갈리지 않게 한다. */
   .date-nodata-note { font-size: 11.5px; color: var(--low-500); white-space: nowrap; }
   /* 2026-09-10 추가(사용자 지시: "과거 일자는 달력을 선택해서 원하는 해당일자를 조회할수는 있도록") — 슬라이더
-     기본 범위(최근 1개월) 밖의 과거 날짜를 바로 선택하는 달력 입력과, 그 상태에서 원래 범위로 되돌리는
-     버튼. 같은 .date-row 안에서 슬라이더/배지와 자연스럽게 어울리도록 크기·톤을 맞췄다. */
+     기본 범위(최근 1개월) 밖의 과거 날짜를 바로 선택하는 연/월/일 드롭다운과, 그 상태에서 원래 범위로
+     되돌리는 버튼. 같은 .date-row 안에서 슬라이더/배지와 자연스럽게 어울리도록 크기·톤을 맞췄다.
+     2026-09-10 재갱신(사용자 지시: "2022년부터 년도는 왜 선택하도록 보여주는거야?? 년->월->일자를 선택할수
+     있도록") — 네이티브 <input type="date"> 대신 select 3개로 교체하면서 .date-calendar-input을
+     .date-ymd-select/.date-ymd-group으로 대체. */
   .date-calendar-label { color: var(--text-muted); }
-  .date-calendar-input {
+  .date-ymd-group { display: inline-flex; gap: 6px; }
+  .date-ymd-select {
     font-family: inherit;
     font-size: 12.5px;
     color: var(--text-primary);
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 5px 8px;
+    padding: 5px 6px;
     cursor: pointer;
   }
   .date-reset-btn { color: var(--accent-3pl); border-color: var(--accent-3pl); }
@@ -1430,16 +1434,29 @@
            기준 한달까지만 선택하여 조회하도록 / 과거 일자는 달력을 선택해서 조회할수 있도록") — 전체 조회
            가능 범위의 시작을 8/24로 고정(dayKeys 필터, EARLIEST_QUERY_DATE 참고)하고, 슬라이더로 평소
            드래그할 수 있는 기본 범위는 최신 날짜 기준 최근 1개월로 좁혔다(sliderMinIdx 참고). 그보다 오래된
-           날짜는 새로 추가한 #f-date-calendar 달력 입력으로 바로 조회할 수 있고, 그렇게 과거로 이동하면
-          "최근 1개월로" 버튼(#f-date-reset-btn)이 나타나 다시 기본 범위로 돌아갈 수 있다. -->
+           날짜는 새로 추가한 연/월/일 드롭다운(#f-date-year/-month/-day)으로 바로 조회할 수 있고, 그렇게
+           과거로 이동하면 "최근 1개월로" 버튼(#f-date-reset-btn)이 나타나 다시 기본 범위로 돌아갈 수 있다.
+           2026-09-10 추가 갱신(사용자 지시: "과거 조회 달력버튼을 눌렀는데 최초 데이터가 2026년 8월부터인데
+           2022년부터 년도는 왜 선택하도록 보여주는거야?? 년 -> 월 -> 일자를 선택할수 있도록 해주고 ...
+           과거일자를 선택할수 있도록 만들어달라는 범위는 DB가 있는 범위내를 요청한거야") — 브라우저 기본
+           <input type="date"> 달력 위젯은 연도 스크롤 목록이 min/max 속성과 무관하게 훨씬 넓은 범위(예:
+           2022년부터)까지 보여주는 경우가 있어(데스크톱/모바일 OS별 기본 달력 UI 구현 차이), 실제 DB에
+           있지도 않은 연도까지 고를 수 있는 것처럼 보이는 혼란을 줬다. 그래서 네이티브 date input을
+           완전히 걷어내고, 연도·월·일 각각을 별도 <select>로 만들어 옵션 자체를 dayKeys[0](8/24)~maxDate
+           범위 안으로만 정확히 제한했다(boot() 쪽 populateYearSelect/populateMonthSelect/populateDaySelect
+           참고 — 실제 DB 범위를 벗어난 값은 옵션 목록에 아예 존재하지 않는다). -->
       <div class="date-row">
         <label for="f-date">조회일자</label>
         <input type="range" id="f-date" min="0" max="0" value="0" step="1" list="f-date-ticks">
         <datalist id="f-date-ticks"></datalist>
         <span class="date-badge" id="date-badge">2026-09-01</span>
         <span class="date-nodata-note" id="date-nodata-note" hidden></span>
-        <label for="f-date-calendar" class="date-calendar-label">과거 조회</label>
-        <input type="date" id="f-date-calendar" class="date-calendar-input" title="과거 일자를 달력에서 직접 선택해 조회">
+        <span class="date-calendar-label">과거 조회</span>
+        <span class="date-ymd-group">
+          <select id="f-date-year" class="date-ymd-select" title="연도"></select>
+          <select id="f-date-month" class="date-ymd-select" title="월"></select>
+          <select id="f-date-day" class="date-ymd-select" title="일"></select>
+        </span>
         <button type="button" id="f-date-reset-btn" class="panel-toggle-btn date-reset-btn" hidden>최근 1개월로</button>
       </div>
 
@@ -2249,45 +2266,118 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   }
   rebuildDateTicks();
   // 2026-09-10 추가(사용자 지시: "과거 일자는 달력을 선택해서 원하는 해당일자를 조회할수는 있도록") — 슬라이더
-  // 기본 범위(최근 1개월)를 벗어난 과거 날짜를 곧바로 고를 수 있는 <input type="date"> 달력을 슬라이더 옆에
-  // 둔다. min/max는 전체 조회 가능 범위(EARLIEST_QUERY_DATE=8/24 ~ maxDate)로 잡아, 달력에서 그 안의 아무
-  // 날짜나 고르면 되고, dayKeys에 정확히 그 날짜가 없어도(주말·미업로드일 등 데이터 공백) 그 이전 중 가장
-  // 가까운 실제 날짜로 자동 스냅한다(nearestDayKey류의 기존 폴백 원리와 동일). 고른 날짜가 슬라이더의 현재
-  // min보다 과거면 슬라이더 min을 그 날짜까지 일시적으로 넓혀서(elDate.min 갱신 + 눈금 재생성) 슬라이더
-  // 위치로도 똑같이 반영되게 하고, "최근 1개월로" 버튼을 노출해 원래 범위로 되돌릴 수 있게 한다.
-  const elDateCalendar = document.getElementById('f-date-calendar');
+  // 기본 범위(최근 1개월)를 벗어난 과거 날짜를 곧바로 고를 수 있는 연/월/일 드롭다운을 슬라이더 옆에 둔다.
+  // dayKeys에 정확히 그 날짜가 없어도(주말·미업로드일 등 데이터 공백) 그 이전 중 가장 가까운 실제 날짜로
+  // 자동 스냅한다(nearestDayKey류의 기존 폴백 원리와 동일). 고른 날짜가 슬라이더의 현재 min보다 과거면
+  // 슬라이더 min을 그 날짜까지 일시적으로 넓혀서(elDate.min 갱신 + 눈금 재생성) 슬라이더 위치로도 똑같이
+  // 반영되게 하고, "최근 1개월로" 버튼을 노출해 원래 범위로 되돌릴 수 있게 한다.
+  // 2026-09-10 재갱신(사용자 지시: "과거 조회 달력버튼을 눌렀는데 최초 데이터가 2026년 8월부터인데 2022년
+  // 부터 년도는 왜 선택하도록 보여주는거야?? 년 -> 월 -> 일자를 선택할수 있도록 해주고 ... 과거일자를
+  // 선택할수 있도록 만들어달라는 범위는 DB가 있는 범위내를 요청한거야") — 네이티브 <input type="date">는
+  // 브라우저/OS 기본 달력 위젯의 연도 스크롤이 min/max와 무관하게 훨씬 넓은 범위를 보여주는 경우가 있어
+  // (실제 DB에 없는 2022년 같은 연도까지 스크롤되는 것으로 사용자가 확인함), 이를 완전히 걷어내고 연/월/일
+  // select 3개로 교체했다 — 각 select의 옵션 자체를 dayKeys[0](8/24)~maxDate 범위로 정확히 제한해서, DB에
+  // 없는 연/월/일은 애초에 옵션 목록에 나타나지 않는다(스크롤해서 벗어난 값을 고를 수 있는 여지 자체가 없음).
+  const elYear = document.getElementById('f-date-year');
+  const elMonth = document.getElementById('f-date-month');
+  const elDay = document.getElementById('f-date-day');
   const elDateResetBtn = document.getElementById('f-date-reset-btn');
   function dayKeyIndexForDate(iso) {
     let idx = 0;
     for (let i = 0; i < dayKeys.length; i++) { if (dayKeys[i] <= iso) idx = i; else break; }
     return idx;
   }
-  function syncCalendarToSlider() {
-    if (elDateCalendar) elDateCalendar.value = dayKeys[Number(elDate.value)] || '';
+  const earliestDate = dayKeys[0] || null;
+  const [MIN_Y, MIN_M, MIN_D] = earliestDate ? earliestDate.split('-').map(Number) : [0, 0, 0];
+  const [MAX_Y, MAX_M, MAX_D] = maxDate ? maxDate.split('-').map(Number) : [0, 0, 0];
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+  function populateYearSelect() {
+    if (!elYear) return;
+    let html = '';
+    for (let y = MIN_Y; y <= MAX_Y; y++) html += `<option value="${y}">${y}년</option>`;
+    elYear.innerHTML = html;
   }
-  if (elDateCalendar) {
-    elDateCalendar.min = dayKeys[0] || '';
-    elDateCalendar.max = maxDate || '';
-    syncCalendarToSlider();
-    elDateCalendar.addEventListener('change', () => {
-      if (!elDateCalendar.value) return;
-      const idx = dayKeyIndexForDate(elDateCalendar.value);
-      if (idx < Number(elDate.min)) {
-        elDate.min = String(idx);
-        rebuildDateTicks();
-        if (elDateResetBtn) elDateResetBtn.hidden = false;
-      }
-      elDate.value = String(idx);
-      syncCalendarToSlider();
-      elDate.dispatchEvent(new Event('input'));
+  function populateMonthSelect(y) {
+    if (!elMonth) return;
+    const lo = (y === MIN_Y) ? MIN_M : 1;
+    const hi = (y === MAX_Y) ? MAX_M : 12;
+    let html = '';
+    for (let m = lo; m <= hi; m++) html += `<option value="${m}">${m}월</option>`;
+    elMonth.innerHTML = html;
+  }
+  function populateDaySelect(y, m) {
+    if (!elDay) return;
+    let lo = 1, hi = daysInMonth(y, m);
+    if (y === MIN_Y && m === MIN_M) lo = MIN_D;
+    if (y === MAX_Y && m === MAX_M) hi = Math.min(hi, MAX_D);
+    let html = '';
+    for (let d = lo; d <= hi; d++) html += `<option value="${d}">${d}일</option>`;
+    elDay.innerHTML = html;
+  }
+  function currentYmdIso() {
+    const y = Number(elYear.value), m = Number(elMonth.value), d = Number(elDay.value);
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  // 슬라이더가 가리키는 실제 날짜(dayKeys[idx])로 연/월/일 select 3개를 전부 다시 채우고 그 값으로 맞춘다
+  // — 슬라이더를 손으로 움직였을 때, 또는 사용자가 데이터 없는 날짜를 골라 가장 가까운 실제 날짜로 스냅된
+  // 뒤에 select 표시를 실제 선택된 날짜와 일치시키기 위해 쓴다.
+  function syncYmdToSlider() {
+    if (!elYear || !elMonth || !elDay) return;
+    const iso = dayKeys[Number(elDate.value)];
+    if (!iso) return;
+    const [y, m, d] = iso.split('-').map(Number);
+    populateYearSelect();
+    elYear.value = String(y);
+    populateMonthSelect(y);
+    elMonth.value = String(m);
+    populateDaySelect(y, m);
+    elDay.value = String(d);
+  }
+  function applyYmdSelection() {
+    const iso = currentYmdIso();
+    const idx = dayKeyIndexForDate(iso);
+    if (idx < Number(elDate.min)) {
+      elDate.min = String(idx);
+      rebuildDateTicks();
+      if (elDateResetBtn) elDateResetBtn.hidden = false;
+    }
+    elDate.value = String(idx);
+    syncYmdToSlider();
+    elDate.dispatchEvent(new Event('input'));
+  }
+  if (elYear && elMonth && elDay) {
+    syncYmdToSlider();
+    elYear.addEventListener('change', () => {
+      const y = Number(elYear.value);
+      populateMonthSelect(y);
+      // 연도를 바꾸면 이전에 고른 월이 새 연도의 선택 가능 범위를 벗어날 수 있으므로, 가능한 값 중 가장
+      // 가까운 값으로 자연스럽게 clamp한다(예: 8월 선택 중 최소 연도로 옮기면 최소 월로 당겨짐).
+      const months = Array.from(elMonth.options).map(o => Number(o.value));
+      const clampedM = Math.min(Math.max(Number(elMonth.value) || months[0], months[0]), months[months.length - 1]);
+      elMonth.value = String(months.includes(clampedM) ? clampedM : months[0]);
+      const m = Number(elMonth.value);
+      populateDaySelect(y, m);
+      const days = Array.from(elDay.options).map(o => Number(o.value));
+      const clampedD = Math.min(Math.max(Number(elDay.value) || days[0], days[0]), days[days.length - 1]);
+      elDay.value = String(days.includes(clampedD) ? clampedD : days[0]);
+      applyYmdSelection();
     });
+    elMonth.addEventListener('change', () => {
+      const y = Number(elYear.value), m = Number(elMonth.value);
+      populateDaySelect(y, m);
+      const days = Array.from(elDay.options).map(o => Number(o.value));
+      const clampedD = Math.min(Math.max(Number(elDay.value) || days[0], days[0]), days[days.length - 1]);
+      elDay.value = String(days.includes(clampedD) ? clampedD : days[0]);
+      applyYmdSelection();
+    });
+    elDay.addEventListener('change', applyYmdSelection);
   }
   if (elDateResetBtn) {
     elDateResetBtn.addEventListener('click', () => {
       elDate.min = String(sliderMinIdx);
       elDate.value = String(defaultIdx);
       rebuildDateTicks();
-      syncCalendarToSlider();
+      syncYmdToSlider();
       elDateResetBtn.hidden = true;
       elDate.dispatchEvent(new Event('input'));
     });
@@ -2398,17 +2488,53 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   function isCleanerFluidProductName(name) {
     return /세정제/.test(name) || /floor cleaner fluid/i.test(name);
   }
+  // 2026-09-10 추가(사용자 지시: "직배수, S10만 입력했을때는 매칭되는 제품 목록이 보여지는데 S10직배수 /
+  // S10 직배수 / 직배수 S10 이렇게 입력하면 제품 조회가 안돼 ... 또 초성 입력도 적용 예를들어 S10 ㅈㅂㅅ
+  // 이렇게만 입력해도 S10 직배수 제품이 조회될 수 있도록 해줘") — 예전에는 검색어 전체를 그대로 품목명의
+  // 부분 문자열로만 비교해서, 띄어쓰기·순서가 조금만 달라도(예: "S10직배수"처럼 붙여 쓰거나 "직배수 S10"처럼
+  // 순서를 바꾸면) 매칭이 안 됐다. 이제 검색어를 "문자 종류가 바뀌는 지점"(영문/숫자 ↔ 한글 완성형 ↔ 한글
+  // 초성 자음, 그리고 공백)을 기준으로 여러 토큰으로 쪼갠 뒤, 모든 토큰이 순서와 무관하게 품목명에 전부
+  // 포함되면 매칭시킨다 — "S10직배수"도 공백이 없어도 문자 종류 전환 지점에서 자동으로 "s10"/"직배수" 두
+  // 토큰으로 나뉘므로 별도 처리 없이 같은 로직으로 해결된다. 초성만으로 이뤄진 토큰(예: "ㅈㅂㅅ")은 일반
+  // 부분 문자열 비교 대신, 품목명의 한글 완성형 음절을 초성만 추출한 문자열과 비교해 매칭한다.
+  const CHOSUNG_LIST = ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
+  function toChosungString(str) {
+    let out = '';
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code >= 0xAC00 && code <= 0xD7A3) {
+        out += CHOSUNG_LIST[Math.floor((code - 0xAC00) / (21 * 28))];
+      } else {
+        out += str[i];
+      }
+    }
+    return out;
+  }
+  // 영문/숫자 연속 구간, 한글 완성형(가~힣) 연속 구간, 한글 초성 자음(ㄱ~ㅎ) 연속 구간을 각각 하나의
+  // 토큰으로 뽑는다 — 공백·구두점은 자동으로 토큰 경계가 되고(정규식이 매칭하지 않는 문자라 건너뜀), 서로
+  // 다른 문자 종류가 붙어 있어도(예: "S10직배수") 종류가 바뀌는 지점에서 자연히 다음 토큰으로 넘어간다.
+  function tokenizeSearchTerm(term) {
+    return (term.match(/[A-Za-z0-9]+|[가-힣]+|[ㄱ-ㅎ]+/g) || []).map(s => s.toLowerCase());
+  }
+  function tokenMatchesText(tok, lowerText, chosungText) {
+    if (/^[ㄱ-ㅎ]+$/.test(tok)) return chosungText.includes(tok);
+    return lowerText.includes(tok);
+  }
   function filterMselOptions(key, term) {
     const wrap = document.querySelector('.msel[data-msel="' + key + '"]');
     if (!wrap) return;
     const optsHost = wrap.querySelector('.msel-opts') || wrap.querySelector('.msel-panel');
-    const t = term.trim().toLowerCase();
+    const trimmed = term.trim();
+    const t = trimmed.toLowerCase();
     // "세정제"/"클리너"(또는 그 일부, 예: "세정"/"클리")를 입력했을 때만 동의어 확장을 적용 — 무관한
     // 검색어(예: "세트")까지 폭넓게 걸리지 않도록 정확히 이 두 단어의 부분 문자열일 때만 활성화한다.
     const isCleanerSearch = !!t && ('세정제'.includes(t) || '클리너'.includes(t));
+    const tokens = tokenizeSearchTerm(trimmed);
     optsHost.querySelectorAll('.msel-opt').forEach(row => {
-      const txt = row.querySelector('span') ? row.querySelector('span').textContent.toLowerCase() : '';
-      const matched = !t || txt.includes(t) || (isCleanerSearch && isCleanerFluidProductName(txt));
+      const rawTxt = row.querySelector('span') ? row.querySelector('span').textContent : '';
+      const txt = rawTxt.toLowerCase();
+      const tokenMatch = tokens.length === 0 || tokens.every(tok => tokenMatchesText(tok, txt, toChosungString(txt)));
+      const matched = !t || tokenMatch || (isCleanerSearch && isCleanerFluidProductName(txt));
       row.style.display = matched ? '' : 'none';
     });
   }
@@ -4040,9 +4166,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 2026-08-28 갱신(31차, 사용자 지시): 입고예정 탭의 "입항완료(예상)" 판정이 이제 조회일자(#f-date) 슬라이더
   // 값을 기준으로 하므로, 슬라이더를 움직일 때마다 재고 현황 탭(render)뿐 아니라 입고예정 탭도 함께
   // 다시 그린다(renderInboundSchedule은 파라미터 없이 항상 elDate.value를 새로 읽어온다).
-  // 2026-09-10 갱신: 슬라이더를 손으로 직접 움직였을 때도(캘린더가 아니라) 옆의 달력 입력(#f-date-calendar)
-  // 표시값이 항상 같이 따라오도록 syncCalendarToSlider()를 함께 호출한다.
-  elDate.addEventListener('input', () => { syncCalendarToSlider(); render(); renderInboundSchedule(); });
+  // 2026-09-10 갱신: 슬라이더를 손으로 직접 움직였을 때도(연/월/일 선택이 아니라) 옆의 연/월/일
+  // select 표시값이 항상 같이 따라오도록 syncYmdToSlider()를 함께 호출한다.
+  elDate.addEventListener('input', () => { syncYmdToSlider(); render(); renderInboundSchedule(); });
   elKindGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-kind]');
     if (!btn) return;
