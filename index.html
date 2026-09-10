@@ -1053,6 +1053,32 @@
   .page-panel { display: none; }
   .page-panel.active { display: block; }
 
+  /* 2026-09-10 추가(사용자 지시: 모바일에서 간단하게 특정 제품 재고를 검색해서 바로 볼 수 있는 화면) —
+     "빠른 조회" 탭. 검색창에 입력하면 boot() 시점에 한 번만 계산해둔 QUICK_INDEX(필터와 무관하게 항상
+     "전체 창고 · 최신 기준"으로 TM+UBUS/위니온/세탁기를 합산한 품목별 재고 목록)에서 검색어와 일치하는
+     품목만 카드로 보여준다. 기존 재고 현황 탭의 브랜드/카테고리/시리즈/제품 등 필터와는 완전히 무관하게
+     항상 전체 품목을 대상으로 검색한다.*/
+  .quick-search-wrap { margin: 0 0 16px; }
+  .quick-search-input {
+    width: 100%; box-sizing: border-box; padding: 14px 16px; font-size: 16px; font-family: inherit;
+    border: 1px solid var(--border-strong); border-radius: 12px; background: var(--surface);
+    color: var(--text-primary);
+  }
+  .quick-search-input:focus { outline: none; border-color: var(--accent-3pl); }
+  .quick-results-count { font-size: 12.5px; color: var(--text-muted); margin: 0 0 10px; }
+  .quick-results { display: flex; flex-direction: column; gap: 10px; }
+  .quick-card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+    background: var(--surface); display: flex; flex-direction: column; gap: 6px;
+  }
+  .quick-card .qc-name { font-size: 14px; font-weight: 700; color: var(--text-primary); line-height: 1.45; }
+  .quick-card .qc-qty { font-family: "Gothic A1", sans-serif; font-size: 26px; font-weight: 800; color: var(--accent-3pl); font-variant-numeric: tabular-nums; }
+  .quick-card .qc-qty .unit { font-size: 13px; font-weight: 700; margin-left: 2px; color: var(--text-muted); }
+  .quick-card .qc-meta { font-size: 12px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 6px; }
+  .quick-card .qc-meta span { background: var(--surface-2); border-radius: 999px; padding: 2px 9px; }
+  .quick-card .qc-sources { font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+  .quick-search-hint { font-size: 12.5px; color: var(--text-muted); margin: -6px 0 16px; }
+
   .inbound-sched-meta { font-size: 12.5px; color: var(--text-muted); margin: -8px 0 18px; }
 
   .inbound-sched-summary { display:flex; flex-wrap:wrap; gap:12px; margin: 0 0 18px; }
@@ -1372,6 +1398,7 @@
   <div class="page-tabs" id="page-tabs" role="tablist">
     <button type="button" class="page-tab active" data-panel="panel-stock" role="tab" aria-selected="true">재고 현황</button>
     <button type="button" class="page-tab" data-panel="panel-inbound-sched" role="tab" aria-selected="false">입고예정</button>
+    <button type="button" class="page-tab" data-panel="panel-quick" role="tab" aria-selected="false">빠른 조회</button>
   </div>
 
   <section aria-labelledby="explorer-head" id="panel-stock" class="page-panel active">
@@ -1716,6 +1743,25 @@
       <p class="section-sub">선적수량 기준 · 국내 창고 입고예정일은 가장 근접한 예상 시점으로 표기</p>
     </div>
     <div id="inbound-sched-root"></div>
+  </section>
+
+  <!-- 2026-09-10 추가(사용자 지시: "별도 탭/버튼으로 전환하는 '빠른 조회' 모드" — 모바일에서 브랜드/
+       카테고리/시리즈/제품 등 복잡한 필터 없이, 검색창에 제품명만 입력하면 그 제품의 현재 재고를 바로
+       카드로 보여주는 초간단 화면. 기존 "재고 현황"/"입고예정" 탭 및 그 안의 필터 상태는 그대로 두고,
+       이 탭 안에서만 별도로 동작한다(boot()의 renderQuickLookup/QUICK_INDEX 참고). -->
+  <section aria-labelledby="quick-head" id="panel-quick" class="page-panel">
+    <div class="section-head">
+      <h2 id="quick-head">빠른 조회</h2>
+      <p class="section-sub">제품명을 검색하면 현재 재고를 바로 보여줍니다</p>
+    </div>
+    <p class="quick-search-hint">TM 자체창고+3PL+수입창고+UBUS+위니온+세탁기 합산 · 항상 최신 기준(조회일자 슬라이더와 무관) · 본품+ACC 모두 검색</p>
+    <div class="quick-search-wrap">
+      <input type="text" id="quick-search-input" class="quick-search-input" placeholder="제품명, 시리즈로 검색 (예: S10 Slim, 직배수)" autocomplete="off" inputmode="search">
+    </div>
+    <div class="quick-results-count" id="quick-results-count" hidden></div>
+    <div id="quick-results" class="quick-results">
+      <p class="empty-note">검색어를 입력하면 결과가 여기에 표시됩니다.</p>
+    </div>
   </section>
 
   <footer>
@@ -4292,6 +4338,103 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 직접 접근해야 해서(주요 재고 알림과 같은 매칭 로직 재사용, Zeo X 등 파트너 창고 전용 재고 보정) 함수를
   // boot() 안으로 옮겼다 — 더 이상 인자를 넘기지 않는다.
   renderInboundSchedule();
+
+  // 2026-09-10 추가(사용자 지시: "별도 탭/버튼으로 전환하는 '빠른 조회' 모드") — "빠른 조회" 탭. 다른
+  // 탭의 브랜드/카테고리/시리즈/제품 필터, 창고 선택, 조회일자 슬라이더와 완전히 무관하게 항상 "전체
+  // 품목 · 전체 창고(TM 자체창고+3PL+수입창고+UBUS+위니온+세탁기) · 최신 기준"으로 검색한다. buildItemBlock
+  // (품목별 잔여재고 패널)의 "창고=전체" 병합 분기(로봇청소기/세탁건조기는 matchRobotOrWasher, ACC는
+  // matchAccItems로 TM+파트너 수량을 하나의 품목으로 합산)와 동일한 로직을 그대로 재사용해, 이 탭에서
+  // 보여주는 합계가 "품목별 잔여재고" 패널에서 창고=전체로 봤을 때의 수량과 항상 일치하도록 한다 — 단
+  // render()에 묶인 브랜드/카테고리/시리즈/제품 필터 변수(brand/category/series/product 등)는 전혀
+  // 쓰지 않고, dayArr 대신 tmMaxDate 기준 최신 스냅샷(days[tmMaxDate])을, PINNED 쪽도 curOnDate(날짜별
+  // 값) 대신 항상 최신 스냅샷 필드인 u.cur를 직접 쓴다(빠른 조회는 날짜 개념이 없는 "지금 재고 얼마나
+  // 있어?" 용도이므로).
+  function computeQuickIndex() {
+    const dayArrLatest = days[tmMaxDate] || [];
+    const pool = [];
+    ['완제품', 'ACC'].forEach(kindFilter => {
+      const tmRowsAll = [];
+      items.forEach((it, i) => {
+        if (it.kind !== kindFilter) return;
+        const pair = dayArrLatest[i];
+        const tm = pair ? (pair[0] || 0) : 0;
+        const pl = pair ? (pair[1] || 0) : 0;
+        const imp = it.imp || 0;
+        tmRowsAll.push({
+          name: it.name, qty: tm + pl + imp, brand: it.brand, major: it.major, series: it.series, kind: it.kind,
+          segs: [{ label: 'TM 자체창고', val: tm }, { label: '3PL', val: pl }, { label: '수입창고', val: imp }],
+        });
+      });
+      const partnerRowsAll = PINNED.filter(u => u.kind === kindFilter).map(u => ({
+        name: u.name, qty: u.cur || 0, brand: u.brand, major: u.major, series: u.series, kind: u.kind,
+        segs: [{ label: u.source, val: u.cur || 0 }],
+      }));
+      const tmRobotAll = tmRowsAll.filter(r => r.major === '로봇청소기');
+      const tmWasherAll = tmRowsAll.filter(r => r.major === '세탁건조기');
+      const tmOtherAll = tmRowsAll.filter(r => r.major !== '로봇청소기' && r.major !== '세탁건조기');
+      const partnerRobotAll = partnerRowsAll.filter(r => r.major === '로봇청소기');
+      const partnerWasherAll = partnerRowsAll.filter(r => r.major === '세탁건조기');
+      const partnerOtherAll = partnerRowsAll.filter(r => r.major !== '로봇청소기' && r.major !== '세탁건조기');
+      const robotMatch = kindFilter === '완제품'
+        ? matchRobotOrWasher(tmRobotAll, partnerRobotAll, false)
+        : matchAccItems(tmRobotAll, partnerRobotAll);
+      const washerMatch = kindFilter === '완제품'
+        ? matchRobotOrWasher(tmWasherAll, partnerWasherAll, true)
+        : { merged: [], unmatchedTm: tmWasherAll, unmatchedPartner: partnerWasherAll };
+      const mergeRow = ({ t, p }) => ({
+        name: t.name, qty: t.qty + p.qty, brand: t.brand, major: t.major, series: t.series, kind: t.kind,
+        segs: t.segs.concat(p.segs),
+      });
+      const tmRows = tmOtherAll.concat(robotMatch.unmatchedTm, washerMatch.unmatchedTm, robotMatch.merged.map(mergeRow), washerMatch.merged.map(mergeRow));
+      const partnerRows = partnerOtherAll.concat(robotMatch.unmatchedPartner, washerMatch.unmatchedPartner);
+      tmRows.concat(partnerRows).forEach(r => pool.push(r));
+    });
+    return pool;
+  }
+  const QUICK_INDEX = computeQuickIndex();
+
+  const elQuickInput = document.getElementById('quick-search-input');
+  const elQuickResults = document.getElementById('quick-results');
+  const elQuickCount = document.getElementById('quick-results-count');
+  const QUICK_RESULT_LIMIT = 40;
+  function renderQuickLookup(term) {
+    const trimmed = (term || '').trim();
+    if (!trimmed) {
+      elQuickCount.hidden = true;
+      elQuickResults.innerHTML = '<p class="empty-note">검색어를 입력하면 결과가 여기에 표시됩니다.</p>';
+      return;
+    }
+    const tokens = tokenizeSearchTerm(trimmed);
+    const matched = tokens.length === 0 ? [] : QUICK_INDEX.filter(r => {
+      const txt = dispName(r.name).toLowerCase();
+      return tokens.every(tok => tokenMatchesText(tok, txt, toChosungString(txt)));
+    }).sort((a, b) => b.qty - a.qty);
+    if (!matched.length) {
+      elQuickCount.hidden = true;
+      elQuickResults.innerHTML = '<p class="empty-note">일치하는 품목이 없습니다.</p>';
+      return;
+    }
+    elQuickCount.hidden = false;
+    elQuickCount.textContent = matched.length > QUICK_RESULT_LIMIT
+      ? `총 ${fmt(matched.length)}개 중 상위 ${QUICK_RESULT_LIMIT}개 표시(재고 많은 순)`
+      : `${fmt(matched.length)}개 품목`;
+    elQuickResults.innerHTML = matched.slice(0, QUICK_RESULT_LIMIT).map(r => {
+      const sourcesHtml = r.segs.filter(s => s.val > 0)
+        .map(s => `<span>${escXml(s.label)} ${fmt(s.val)}</span>`).join('');
+      // 2026-09-10 추가: ACC 품목은 원본 series 필드가 대부분 'ACC'로 뭉뚱그려져 있어 그대로 보여주면
+      // 정보가 없다("ACC" 칩과 "본품/ACC" 칩이 중복) — inferAccSeriesTokens(이름 기반 추론, accSeriesMatches
+      // 필터가 쓰는 것과 동일한 함수)로 실제 시리즈를 알 수 있으면 그걸 대신 보여준다.
+      const seriesDisplay = (r.series && r.series !== 'ACC') ? r.series : (inferAccSeriesTokens(r.name).join('/') || r.series || '');
+      return `<div class="quick-card">
+        <div class="qc-name">${escXml(dispName(r.name))}</div>
+        <div class="qc-qty">${fmt(r.qty)}<span class="unit">개</span></div>
+        <div class="qc-meta"><span>${escXml(r.brand || '')}</span><span>${escXml(r.major || '')}</span>${seriesDisplay ? `<span>${escXml(seriesDisplay)}</span>` : ''}<span>${r.kind === 'ACC' ? 'ACC' : '본품'}</span></div>
+        ${sourcesHtml ? `<div class="qc-sources">${sourcesHtml}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+  elQuickInput.addEventListener('input', () => renderQuickLookup(elQuickInput.value));
+
   // 2026-09-02 추가(사용자 지시: "지금 모자른 제품은 어떤 제품이고 여유가 있는 제품은 어떤 제품인지를
   // 한눈에 보고싶다" / 첨부 "본품 가용일수_0831 기준.xlsx"): "가용일수 기반 재고 알림" 패널. AVAIL_DAYS_DATA
   // 자체(총재고·일평균·가용일수 수치)는 조회일자와 무관한 정적 주간 스냅샷이지만, 2026-09-02(커밋 #81,
