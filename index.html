@@ -1713,7 +1713,7 @@
               <button type="button" class="panel-toggle-btn desc-toggle-btn" id="avail-desc-toggle-btn" title="이 항목의 기준과 산출 방식이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
               <h4 class="lsp-head">가용일수 기반 재고 알림 <span id="adp-week"></span></h4>
             </div>
-            <p class="lsp-sub" id="avail-desc-body" hidden>총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈·제품 필터 적용(창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
+            <p class="lsp-sub" id="avail-desc-body" hidden>총재고 = 대시보드 실시간 재고(TM+3PL+수입창고, 로봇청소기는 UBUS 파트너 재고 합산) · 일평균 출하량 = 물류팀 매주 집계 · 가용일수 = 총재고 ÷ 일평균 출하량 · 예상 소진일 = 상단 기준일 + 가용일수 · 브랜드·카테고리·시리즈 필터 적용(제품을 선택하면 그 제품과 같은 브랜드·카테고리·시리즈에 속한 품목을 모두 보여줍니다 · 창고 필터 제외, 이름 기반 매칭이라 오차 가능) · <span class="avail-wow-legend up">▲</span>/<span class="avail-wow-legend down">▼</span> = 물류팀 주간 파일 기준 전주대비 가용일수 증감(일, 실시간 아님), ▲=가용일수 증가(재고 여유 개선), ▼=가용일수 감소(재고 소진 가속 — 주의) · <strong>[ACC]</strong> 표시 품목(세정제·악세서리키트·더스트백)은 구분(본품만/ACC 포함) 설정과 무관하게 항상 표시되며, 물류팀 파일에 일평균 데이터가 없어 가용일수는 산정하지 않고 총재고만 실시간으로 보여준다</p>
             <div class="low-stock-tiers" id="avail-days-tiers"></div>
           </div>
 
@@ -1834,20 +1834,50 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     '샤오미 히터': { brand: '샤오미', major: '히터', series: ['전체'], require: [] },
     '샤오미 게이밍 모니터': { brand: '샤오미', major: '모니터', series: ['전체'], require: [] },
   };
+  // 2026-09-10 추가(사용자 지시: "가용일수는 조회된 제품, 시리즈, 카테고리에 연관된 제품만 보여줘 / 예를
+  // 들어 제품선택을 S10 Slim 으로 선택하면 로보락 S10 시리즈에 제품만 보여줘 / 즉, 제품만 선택했더라도
+  // 해당 제품의 동일한 브랜드-카테고리-시리즈까지 선택된 제품에 대해 보여줘"): 커밋 #81 이후 가용일수
+  // 패널은 "제품" 필터가 선택되면 그 제품 하나(require/exclude가 정확히 매칭하는 단일 AVAIL_CLASSIFY
+  // 스펙)만 보여주고 있었다(아래 삭제된 이전 로직 참고) — 예를 들어 "S10 MaxV Slim 직배수"를 제품으로
+  // 선택하면 가용일수 패널에도 그 한 줄만 남고, 같은 S10 시리즈의 다른 변형(일반형, Ultra 등)은 전부
+  // 사라졌다. 사용자가 원하는 동작은 그 반대 방향 확장이다: "제품"을 하나만 선택했더라도, 그 제품이 속한
+  // 시리즈(브랜드·카테고리까지 포함) 전체를 보여줘야 한다. 시리즈 필터(seriesArr)는 이미 그 시리즈만
+  // 보여주는 정확히 원하는 동작을 하므로, "제품"만 선택되고 "시리즈"는 아직 '전체'인 경우에 한해 선택된
+  // 제품(들)이 속한 시리즈를 역으로 추론해 시리즈 필터에 대입하는 방식으로 구현한다 — 그러면 이 함수와
+  // accAvailItemMatchesFilters 둘 다 기존의 "brand/major/series만으로 판정" 로직을 그대로 재사용할 수
+  // 있고, 더 이상 spec별 require/exclude를 "제품" 값과 직접 비교하는 좁은 매칭을 하지 않는다.
+  function impliedSeriesTokensFromProducts(products) {
+    const set = new Set();
+    // robotSeriesTokenFromName은 "SarosZ70"/"QrevoCurv"처럼 공백 없는 내부 매칭용 토큰을 주는데,
+    // AVAIL_CLASSIFY.series 값은 "Saros Z70"/"Qrevo Curv"처럼 공백이 있는 표기를 쓰므로 여기서만 다시
+    // 공백 있는 표기로 맞춰준다(다른 로봇청소기 매칭 로직에는 영향 없음, 이 함수 안에서만 쓰는 변환).
+    const DISPLAY = { SarosZ70: 'Saros Z70', QrevoCurv: 'Qrevo Curv' };
+    function collect(name, seriesField) {
+      if (!productMatches(name, products)) return;
+      const tok = robotSeriesTokenFromName(name);
+      if (tok) { set.add(DISPLAY[tok] || tok); return; }
+      // 로봇청소기 S10/S9/S8/Saros Z70/Qrevo Curv가 아닌 품목(H60 계열, BLUEVENT, 세탁기, 샤오미 등)은
+      // 이름에서 시리즈 토큰을 뽑을 수 없으므로 원본 series 필드로 폴백한다 — TM_DATA.items[].series는
+      // 신뢰할 수 있는 값이라 안전하다(UBUS/PINNED 쪽 series는 병합 셀이라 불확실할 수 있지만, 최악의
+      // 경우 implied 시리즈 집합에 항목이 하나 더 늘어날 뿐 — 필터가 지나치게 좁아지는 회귀는 없다).
+      if (seriesField && seriesField !== 'ACC' && seriesField !== '전체') set.add(seriesField);
+    }
+    items.forEach(it => collect(it.name, it.series));
+    PINNED.forEach(u => collect(u.name, u.series));
+    return set;
+  }
+  function effectiveAvailSeriesFilter(seriesArr, products) {
+    if (!seriesArr.includes('전체') || products.includes('전체')) return seriesArr;
+    const implied = impliedSeriesTokensFromProducts(products);
+    return implied.size ? Array.from(implied) : seriesArr;
+  }
   function availItemMatchesFilters(spec, brands, categories, seriesArr, products) {
     const cls = AVAIL_CLASSIFY[spec];
     if (!cls) return true;
     if (!inSel(cls.brand, brands)) return false;
     if (!inSel(cls.major, categories)) return false;
-    if (!seriesArr.includes('전체') && !cls.series.some(s => seriesArr.includes(s))) return false;
-    if (!products.includes('전체')) {
-      const req = cls.require || [], exc = cls.exclude || [];
-      const matched = products.some(p => {
-        const hay = String(p);
-        return req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t));
-      });
-      if (!matched) return false;
-    }
+    const effSeries = effectiveAvailSeriesFilter(seriesArr, products);
+    if (!effSeries.includes('전체') && !cls.series.some(s => effSeries.includes(s))) return false;
     return true;
   }
   // 2026-09-03 추가(커밋 #86, 사용자 지시: "가용일수 기반 재고 알림에는 구분 선택 기준없이 세정제,
@@ -1889,19 +1919,16 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // availItemMatchesFilters와 동일한 로직이지만 AVAIL_CLASSIFY(24개 완제품 스펙) 대신 ACC_AVAIL_ITEMS를
   // 대상으로 한다 — 별도 함수로 둔 이유는 완제품 스펙 필터링(이미 검증된 기존 로직)에 영향을 주지 않기
   // 위해서다.
+  // 2026-09-10 갱신(위 availItemMatchesFilters와 동일한 사용자 지시 반영): "제품"만 선택된 경우 그 제품의
+  // require/exclude와 정확히 일치하는 ACC 소모품 하나만 남기던 좁은 매칭을 걷어내고, availItemMatchesFilters
+  // 와 동일하게 effectiveAvailSeriesFilter(선택된 제품이 속한 시리즈로 확장)로 판정한다.
   function accAvailItemMatchesFilters(key, brands, categories, seriesArr, products) {
     const cls = ACC_AVAIL_ITEMS.find(x => x.key === key);
     if (!cls) return true;
     if (!inSel(cls.brand, brands)) return false;
     if (!inSel(cls.major, categories)) return false;
-    if (!seriesArr.includes('전체') && !cls.series.some(s => seriesArr.includes(s))) return false;
-    if (!products.includes('전체')) {
-      // matchTest가 있는 항목(예: 세정제)은 require/exclude 대신 그 함수로 제품명을 판별한다.
-      const req = cls.require || [], exc = cls.exclude || [];
-      const testOne = cls.matchTest || (hay => req.every(t => hay.includes(t)) && !exc.some(t => hay.includes(t)));
-      const matched = products.some(p => testOne(String(p)));
-      if (!matched) return false;
-    }
+    const effSeries = effectiveAvailSeriesFilter(seriesArr, products);
+    if (!effSeries.includes('전체') && !cls.series.some(s => effSeries.includes(s))) return false;
     return true;
   }
   // ACC_AVAIL_ITEMS 한 항목(spec)의 실시간 총재고를 계산한다. liveStockForAvailClass(완제품 전용, UBUS
