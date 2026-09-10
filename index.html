@@ -362,6 +362,7 @@
 
   .date-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 14px;
     background: var(--surface-2);
@@ -373,6 +374,7 @@
   .date-row label { font-size: 11.5px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.03em; white-space: nowrap; }
   .date-row input[type="range"] {
     flex: 1;
+    min-width: 120px;
     accent-color: var(--accent-3pl);
     cursor: pointer;
   }
@@ -389,6 +391,22 @@
      아직 없는 날짜(예: 이번 달 말일 근처)를 고르면 가장 최근 실제 데이터 날짜 값을 그대로 보여주되, 그
      사실을 이 note로 명시해 숫자가 왜 그날짜에서 안 바뀌는지 헷갈리지 않게 한다. */
   .date-nodata-note { font-size: 11.5px; color: var(--low-500); white-space: nowrap; }
+  /* 2026-09-10 추가(사용자 지시: "과거 일자는 달력을 선택해서 원하는 해당일자를 조회할수는 있도록") — 슬라이더
+     기본 범위(최근 1개월) 밖의 과거 날짜를 바로 선택하는 달력 입력과, 그 상태에서 원래 범위로 되돌리는
+     버튼. 같은 .date-row 안에서 슬라이더/배지와 자연스럽게 어울리도록 크기·톤을 맞췄다. */
+  .date-calendar-label { color: var(--text-muted); }
+  .date-calendar-input {
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text-primary);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 8px;
+    cursor: pointer;
+  }
+  .date-reset-btn { color: var(--accent-3pl); border-color: var(--accent-3pl); }
+  .date-reset-btn:hover { background: var(--accent-3pl); color: #fff; }
   .kind-toggle-top {
     display: flex;
     align-items: center;
@@ -1407,13 +1425,22 @@
            이제 "업로드된 어느 소스든 데이터가 있는 가장 늦은 날짜"까지 늘어난다(TM이 아직 그 날짜까지
            갱신되지 않았어도 선택 가능 — TM 관련 수치는 가장 가까운 실제 TM 데이터로 자동 대체 표시되고,
            그 사실이 #date-nodata-note에 안내된다). boot() 쪽 슬라이더 초기화부(elDate.min/max/value)와
-           datalist 눈금 생성부, dayKeys/tmDayArr 선언부 참고. -->
+           datalist 눈금 생성부, dayKeys/tmDayArr 선언부 참고.
+           2026-09-10 갱신(사용자 지시: "조회 기간은 8/24부터 조회되도록 하고 조회 범위는 마지막 업데이트일자
+           기준 한달까지만 선택하여 조회하도록 / 과거 일자는 달력을 선택해서 조회할수 있도록") — 전체 조회
+           가능 범위의 시작을 8/24로 고정(dayKeys 필터, EARLIEST_QUERY_DATE 참고)하고, 슬라이더로 평소
+           드래그할 수 있는 기본 범위는 최신 날짜 기준 최근 1개월로 좁혔다(sliderMinIdx 참고). 그보다 오래된
+           날짜는 새로 추가한 #f-date-calendar 달력 입력으로 바로 조회할 수 있고, 그렇게 과거로 이동하면
+          "최근 1개월로" 버튼(#f-date-reset-btn)이 나타나 다시 기본 범위로 돌아갈 수 있다. -->
       <div class="date-row">
         <label for="f-date">조회일자</label>
         <input type="range" id="f-date" min="0" max="0" value="0" step="1" list="f-date-ticks">
         <datalist id="f-date-ticks"></datalist>
         <span class="date-badge" id="date-badge">2026-09-01</span>
         <span class="date-nodata-note" id="date-nodata-note" hidden></span>
+        <label for="f-date-calendar" class="date-calendar-label">과거 조회</label>
+        <input type="date" id="f-date-calendar" class="date-calendar-input" title="과거 일자를 달력에서 직접 선택해 조회">
+        <button type="button" id="f-date-reset-btn" class="panel-toggle-btn date-reset-btn" hidden>최근 1개월로</button>
       </div>
 
       <!-- 2026-09-03 갱신(사용자 지시: 첨부 스크린샷의 화살표 — "해당 항목설명은 화살표 방향으로 이동")
@@ -1896,12 +1923,17 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 원리가 같아 새로운 개념은 아니다. TM_DATA.days 자체의 마지막 날짜는 별도로 tmMaxDate에 남겨, "TM 자체창고
   // 기준일" 표시(tmAsOf)는 여전히 TM이 실제로 갱신된 마지막 날짜를 정확히 가리키게 한다(파트너 창고 때문에
   // 앞당겨진 전체 dayKeys의 maxDate와 혼동하지 않도록 구분).
+  // 2026-09-10 추가(사용자 지시: "조회 기간은 8/24부터 업로드 했으니 8/24부터 조회되도록") — TM_DATA.days에는
+  // 8/24 이전(8/1~8/23)에도 날짜 키가 있지만, 실제 일일 파일 업로드는 8/24부터 시작됐다(그 이전 것은 소급
+  // 정리용 과거 이력이라 실제 "조회 가능한 날짜"로 취급하지 않는다). 조회일자 슬라이더/달력 어디서도 이
+  // 날짜 이전은 아예 고를 수 없도록 dayKeys 자체를 이 기준일 이후로만 필터링한다.
+  const EARLIEST_QUERY_DATE = '2026-08-24';
   const dayKeys = Array.from(new Set(
     Object.keys(days)
       .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.ubus) || {}))
       .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.weione) || {}))
       .concat(Object.keys((SOURCE_DAYS && SOURCE_DAYS.washer) || {}))
-  )).sort();
+  )).filter(d => d >= EARLIEST_QUERY_DATE).sort();
   const maxDate = dayKeys[dayKeys.length - 1];
   const tmDayKeysOnly = Object.keys(days).sort();
   const tmMaxDate = tmDayKeysOnly[tmDayKeysOnly.length - 1];
@@ -2162,19 +2194,42 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // "선택 가능한 범위는 이번 달 안에서만"이라는 구조적 한계가 있었는데(day-of-month 정수 키라 다른 달과
   // 구분이 안 됐음), 이번에 dayKeys 자체를 "YYYY-MM-DD" 전체 날짜로 바꾸면서(위 dayKeys 선언부 참고)
   // 그 한계가 없어져 지난달 이전 데이터까지도 자연스럽게 이어서 조회할 수 있다.
-  elDate.min = '0';
+  // 2026-09-10 갱신(사용자 지시: "조회 범위는 마지막 업데이트일자 기준 한달까지만 선택하여 조회하도록") —
+  // 슬라이더로 직접 드래그해서 고를 수 있는 범위(min)를 이제 dayKeys[0](전체 이력의 첫날)이 아니라, 가장
+  // 마지막 날짜(maxDate)로부터 달력상 1개월 이내로 좁힌다. 그보다 오래된 과거 조회가 필요할 때는 슬라이더가
+  // 아니라 바로 아래 새로 추가한 달력 입력(#f-date-calendar)으로 하도록 안내한다 — 슬라이더 자체를 완전히
+  // 막는 게 아니라 "평소 조작하는 기본 범위"만 최근 1개월로 좁히는 것이고, 달력으로 그 밖의 날짜를 고르면
+  // 슬라이더 min이 그 날짜까지 일시적으로 넓혀져 슬라이더에도 선택 상태가 그대로 반영된다(아래 캘린더
+  // 연동부 참고). "최근 1개월로" 버튼으로 언제든 원래의 좁은 범위로 되돌릴 수 있다.
+  function monthAgoIso(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setMonth(d.getMonth() - 1);
+    return isoLocal(d);
+  }
+  let sliderMinIdx = 0;
+  if (maxDate) {
+    const windowStartDate = monthAgoIso(maxDate);
+    for (let i = 0; i < dayKeys.length; i++) { if (dayKeys[i] < windowStartDate) sliderMinIdx = i + 1; else break; }
+    if (sliderMinIdx >= dayKeys.length) sliderMinIdx = dayKeys.length - 1;
+  }
+  elDate.min = String(sliderMinIdx);
   elDate.max = String(dayKeys.length - 1);
   // "조회일자 기본 선택값은 항상 오늘 전날로"(35차) 원칙은 그대로 유지 — 브라우저 로컬 "오늘"에서 하루를
   // 뺀 날짜를 dayKeys 안에서 찾되, 그 날짜가 아직 dayKeys에 없으면(예: 데이터가 어제까지 안 올라온 경우)
   // 그보다 이전 중 가장 가까운 날짜로, 그마저 없으면(모든 날짜가 그보다 미래인 경우는 있을 수 없지만
   // 안전장치로) 가장 오래된 날짜로 자연스럽게 내려간다 — 즉 "가장 마지막으로 업데이트한 날짜"를 넘어설
   // 수 없다는 요청을 index 계산 자체가 그대로 보장한다.
+  let defaultIdx = sliderMinIdx;
   {
     const y = new Date(NOW);
     y.setDate(y.getDate() - 1);
     const yStr = isoLocal(y);
-    let defaultIdx = 0;
     for (let i = 0; i < dayKeys.length; i++) { if (dayKeys[i] <= yStr) defaultIdx = i; else break; }
+    // 방어적 clamp: yStr 계산이 어떤 이유로든 sliderMinIdx보다 앞선 날짜를 가리키는 경우(예: 로컬 시계가
+    // 어긋났거나 최근 한 달 안에 데이터가 전혀 없는 극단적 상황)에도 기본값은 항상 슬라이더가 실제로 표현할
+    // 수 있는 범위(min) 안에 있도록 보정한다.
+    if (defaultIdx < sliderMinIdx) defaultIdx = sliderMinIdx;
+    if (defaultIdx > dayKeys.length - 1) defaultIdx = dayKeys.length - 1;
     elDate.value = String(defaultIdx);
   }
   // 2026-08-31 추가(사용자 지시: "바에 직접적으로 날짜가 없더라도 날짜별 구분 칸이 있다던지 하는 방식"):
@@ -2182,13 +2237,60 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // type="range">의 표준 list 속성(datalist)을 쓰면 각 날짜 경계마다 브라우저가 자체적으로 작은 눈금
   // 표시를 그려준다. 2026-09-07 갱신: 이제 슬라이더 값 자체가 dayKeys의 인덱스이므로, 눈금도 그냥
   // 0..dayKeys.length-1을 하나씩 채운다(실제 날짜와 무관하게 "선택 가능한 한 칸"마다 눈금 하나).
-  {
+  // 2026-09-10 갱신: min이 더 이상 항상 0이 아니라 동적으로 바뀔 수 있어(위 sliderMinIdx, 캘린더 연동부
+  // 참고), 눈금도 현재 elDate.min부터 다시 그릴 수 있도록 함수로 분리했다 — min이 바뀔 때마다 재호출한다.
+  function rebuildDateTicks() {
     const ticks = document.getElementById('f-date-ticks');
-    if (ticks) {
-      let html = '';
-      for (let i = 0; i < dayKeys.length; i++) html += `<option value="${i}"></option>`;
-      ticks.innerHTML = html;
-    }
+    if (!ticks) return;
+    const lo = Number(elDate.min);
+    let html = '';
+    for (let i = lo; i < dayKeys.length; i++) html += `<option value="${i}"></option>`;
+    ticks.innerHTML = html;
+  }
+  rebuildDateTicks();
+  // 2026-09-10 추가(사용자 지시: "과거 일자는 달력을 선택해서 원하는 해당일자를 조회할수는 있도록") — 슬라이더
+  // 기본 범위(최근 1개월)를 벗어난 과거 날짜를 곧바로 고를 수 있는 <input type="date"> 달력을 슬라이더 옆에
+  // 둔다. min/max는 전체 조회 가능 범위(EARLIEST_QUERY_DATE=8/24 ~ maxDate)로 잡아, 달력에서 그 안의 아무
+  // 날짜나 고르면 되고, dayKeys에 정확히 그 날짜가 없어도(주말·미업로드일 등 데이터 공백) 그 이전 중 가장
+  // 가까운 실제 날짜로 자동 스냅한다(nearestDayKey류의 기존 폴백 원리와 동일). 고른 날짜가 슬라이더의 현재
+  // min보다 과거면 슬라이더 min을 그 날짜까지 일시적으로 넓혀서(elDate.min 갱신 + 눈금 재생성) 슬라이더
+  // 위치로도 똑같이 반영되게 하고, "최근 1개월로" 버튼을 노출해 원래 범위로 되돌릴 수 있게 한다.
+  const elDateCalendar = document.getElementById('f-date-calendar');
+  const elDateResetBtn = document.getElementById('f-date-reset-btn');
+  function dayKeyIndexForDate(iso) {
+    let idx = 0;
+    for (let i = 0; i < dayKeys.length; i++) { if (dayKeys[i] <= iso) idx = i; else break; }
+    return idx;
+  }
+  function syncCalendarToSlider() {
+    if (elDateCalendar) elDateCalendar.value = dayKeys[Number(elDate.value)] || '';
+  }
+  if (elDateCalendar) {
+    elDateCalendar.min = dayKeys[0] || '';
+    elDateCalendar.max = maxDate || '';
+    syncCalendarToSlider();
+    elDateCalendar.addEventListener('change', () => {
+      if (!elDateCalendar.value) return;
+      const idx = dayKeyIndexForDate(elDateCalendar.value);
+      if (idx < Number(elDate.min)) {
+        elDate.min = String(idx);
+        rebuildDateTicks();
+        if (elDateResetBtn) elDateResetBtn.hidden = false;
+      }
+      elDate.value = String(idx);
+      syncCalendarToSlider();
+      elDate.dispatchEvent(new Event('input'));
+    });
+  }
+  if (elDateResetBtn) {
+    elDateResetBtn.addEventListener('click', () => {
+      elDate.min = String(sliderMinIdx);
+      elDate.value = String(defaultIdx);
+      rebuildDateTicks();
+      syncCalendarToSlider();
+      elDateResetBtn.hidden = true;
+      elDate.dispatchEvent(new Event('input'));
+    });
   }
   const elKindGroup = document.getElementById('f-kind');
   let kindMode = '완제품';
@@ -2741,10 +2843,33 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     const color = name.includes('블랙') ? 'black' : (name.includes('화이트') ? 'white' : (name.includes('실버') ? 'silver' : ''));
     return { variant, pump, color };
   }
+  // 2026-09-10 추가(사용자 지시: "S10 slim 직배수 기준으로 본품 잔여재고에는 UBUS에 560개가 있다고 나오고
+  // 가용일수에는 15개만 있다고 나오고 왜 이런거야?" 라는 질문에서 발견된 버그 수정) — robotFullKey는 지금까지
+  // 호출부가 넘겨주는 seriesField(TM_DATA.items[].series 또는 UBUS_DATA[].series 원본 값)를 그대로 키에
+  // 섞어 썼는데, UBUS 원본 엑셀의 "품목" 컬럼은 병합 셀이라 실제로는 "S10 MaxV Slim (직배수형)" 같은 개별
+  // 품목에도 윗줄 구분 라벨("S10 MaxV Ultra")이 그대로 흘러내려와 있는 경우가 있다(파싱 스크립트가 파일에
+  // 있는 값을 그대로 옮긴 것뿐이라 파싱 버그는 아니고, 원본 파일 자체의 표기 관행). 그 결과 TM 쪽
+  // series='S10'과 UBUS 쪽 series='S10 MaxV Ultra'가 서로 달라 매칭 키가 어긋나서, [본품] 품목별
+  // 잔여재고(TM·UBUS 한 제품으로 합치기)와 가용일수 실시간 재계산(liveStockForAvailClass의 UBUS 합산) 둘
+  // 다에서 UBUS 재고가 통째로 누락되고 있었다 — 실측 결과 S10/S9 MaxV Ultra·Slim 계열 UBUS 품목 대부분이
+  // 이 문제를 갖고 있었다(Saros Z70·일부 S8 품목은 원본 파일에 우연히 짧은 라벨이 남아있어 문제없이 매칭돼
+  // 왔음). 근본 수정: series 필드를 그대로 믿는 대신, 품목명 텍스트에서 직접 "S10"/"S9"/"S8"/"Saros
+  // Z70"/"Qrevo Curv" 시리즈 토큰을 뽑아내 키에 쓴다(TM·UBUS 양쪽 표기 스타일 전부에서 안정적으로 뽑힘 —
+  // variant/pump/color처럼 이미 이름 텍스트 기반으로 판별하던 값들과 같은 원리). 텍스트에서 시리즈를 못
+  // 찾는 극히 예외적인 경우(예: series='기타')에는 기존처럼 seriesField로 그대로 폴백해 회귀가 없게 한다.
+  function robotSeriesTokenFromName(name) {
+    if (/S10(?!\d)/.test(name)) return 'S10';
+    if (/S9(?!\d)/.test(name)) return 'S9';
+    if (/S8(?!\d)/.test(name)) return 'S8';
+    if (/Saros\s*Z70/i.test(name)) return 'SarosZ70';
+    if (/Qrevo\s*Curv/i.test(name)) return 'QrevoCurv';
+    return null;
+  }
   function robotFullKey(name, seriesField) {
     const k = robotMatchKey(name);
     if (!k) return null;
-    return seriesField + '|' + k.variant + '|' + k.pump + '|' + k.color;
+    const seriesKey = robotSeriesTokenFromName(name) || seriesField;
+    return seriesKey + '|' + k.variant + '|' + k.pump + '|' + k.color;
   }
   function washerMatchKey(name) {
     if (isGraded(name) || isRefurb(name)) return null;
@@ -3915,7 +4040,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   // 2026-08-28 갱신(31차, 사용자 지시): 입고예정 탭의 "입항완료(예상)" 판정이 이제 조회일자(#f-date) 슬라이더
   // 값을 기준으로 하므로, 슬라이더를 움직일 때마다 재고 현황 탭(render)뿐 아니라 입고예정 탭도 함께
   // 다시 그린다(renderInboundSchedule은 파라미터 없이 항상 elDate.value를 새로 읽어온다).
-  elDate.addEventListener('input', () => { render(); renderInboundSchedule(); });
+  // 2026-09-10 갱신: 슬라이더를 손으로 직접 움직였을 때도(캘린더가 아니라) 옆의 달력 입력(#f-date-calendar)
+  // 표시값이 항상 같이 따라오도록 syncCalendarToSlider()를 함께 호출한다.
+  elDate.addEventListener('input', () => { syncCalendarToSlider(); render(); renderInboundSchedule(); });
   elKindGroup.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-kind]');
     if (!btn) return;
