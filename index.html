@@ -321,6 +321,31 @@
     resize: both;
     overflow: auto;
   }
+  /* 2026-09-10 추가(사용자 지시: "핸드폰 버전에 추가로 제품 조회 시 제품명이 대부분 길다보니 보여줄수
+     있는 범위내 최대한 목록명이 전부 보여서 선택할수 있도록 창을 최대한 크게 보여줘") — 모바일에서는
+     위 데스크톱용 드래그 리사이즈(110% 폭·220px 높이, 마우스로 늘려야 커짐)가 터치로는 다루기 번거롭고,
+     좁은 필터 칸(모바일에서 2열 그리드) 기준 110%로는 긴 제품명이 여전히 줄임표(...)로 잘린다. 제품
+     선택 패널만 화면 폭 기준 고정(position: fixed)으로 전환해 뷰포트 중앙에 거의 꽉 차게(가로 94vw·세로
+     최대 78vh) 띄우고, 시작 크기 자체를 이미 최대로 잡아 드래그 없이도 목록명이 최대한 안 잘리고 다
+     보이도록 한다(터치 리사이즈는 다루기 어려우므로 resize: none으로 끔 — 이미 충분히 크므로 불필요).
+     다른 필터(창고/브랜드/카테고리/시리즈)는 항목 수가 적어 기존처럼 필터 칸 폭 그대로 두고 그대로 둔다. */
+  @media (max-width: 700px) {
+    .msel[data-msel="product"] .msel-panel {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      right: auto;
+      transform: translate(-50%, -50%);
+      width: 94vw;
+      height: min(78vh, 620px);
+      max-width: 94vw;
+      max-height: 78vh;
+      min-width: 0;
+      min-height: 0;
+      resize: none;
+    }
+    .msel[data-msel="product"] .msel-opt { font-size: 14px; padding: 9px 8px; }
+  }
   .msel-opt {
     display: flex;
     align-items: center;
@@ -416,7 +441,11 @@
     align-items: center;
     gap: 12px;
     margin-bottom: 14px;
+    flex-wrap: wrap;
   }
+  /* 2026-09-10 추가: 필터 안내 문구 토글 버튼을 구분 토글 옆에 배치하되, 좁은 화면에서는 줄바꿈되면서
+     오른쪽 정렬(margin-left:auto)로 밀려나 자연스럽게 다음 줄로 내려가도록 한다. */
+  .filter-scope-toggle-btn { margin-left: auto; }
   .kind-toggle-top label {
     font-size: 11.5px;
     font-weight: 700;
@@ -1352,14 +1381,20 @@
     </div>
 
     <div class="explorer">
+      <!-- 2026-09-10 갱신(사용자 지시: "해당 문구도 숨겼다 볼수 있도록 해줘 / 핸드폰으로 보니 상단 문구가
+           너무 길어 글자만 많이 있는거처럼 보여") — 아래 창고·브랜드·카테고리·시리즈·제품 선택 방법 안내
+           문단이 예전엔 항상 펼쳐져 있어 모바일 화면에서 글자만 잔뜩 있는 것처럼 보였다. 다른 "항목 설명"
+           토글(esum-notes-toggle-btn 등, boot()의 setupDescToggle() 참고)과 완전히 같은 패턴으로 기본은
+           접어두고 버튼을 눌러야 펼쳐지도록 바꿨다(펼침 상태는 localStorage에 저장). -->
       <div class="kind-toggle-top">
         <label for="f-kind">구분</label>
         <div class="kind-toggle" id="f-kind" role="group" aria-label="본품/ACC 구분">
           <button type="button" data-kind="완제품" class="active">본품만</button>
           <button type="button" data-kind="전체">ACC 포함</button>
         </div>
+        <button type="button" class="panel-toggle-btn desc-toggle-btn filter-scope-toggle-btn" id="filter-scope-toggle-btn" title="창고·브랜드·카테고리·시리즈·제품 선택 방법이 궁금할 때 클릭하세요">ⓘ 항목 설명</button>
       </div>
-      <p class="filter-scope-note multi-select-note">창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈 조건에 맞는 품목만 표시되며(구분과 무관하게 ACC 품목도 항상 함께 표시됩니다), 검색창에 품목명 일부를 입력해 좁힐 수 있습니다. ACC 품목을 선택하면 구분이 자동으로 "ACC 포함"으로 전환됩니다.</p>
+      <p class="filter-scope-note multi-select-note" id="filter-scope-note-body" hidden>창고·브랜드·카테고리·시리즈·제품은 각 항목을 클릭해 원하는 값을 체크하면 여러 개를 동시에 선택할 수 있습니다(중복 선택 가능). "전체"를 선택하면 개별 선택이 해제됩니다. 제품 목록은 위에서 선택한 브랜드·카테고리·시리즈 조건에 맞는 품목만 표시되며(구분과 무관하게 ACC 품목도 항상 함께 표시됩니다), 검색창에 품목명 일부를 입력해 좁힐 수 있습니다. ACC 품목을 선택하면 구분이 자동으로 "ACC 포함"으로 전환됩니다.</p>
       <div class="filter-bar">
         <div class="field">
           <label for="f-warehouse">창고 <span class="multi-hint">(중복 선택 가능)</span></label>
@@ -3027,18 +3062,29 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
     // (직배수 버전)")는 UBUS 쪽엔 색상별로 나뉘어 있어도(예: "...Slim (직배수형) [블랙]") 같은 제품일 수
     // 있으므로, 색상을 제외한 완화 키로 재시도. 단 TM 쪽 자체 표기에 색상이 없는 경우에만 완화(TM이 색상을
     // 명시했는데 못 찾은 경우는 실제로 그 색상 재고가 없는 것이므로 완화하지 않음 — 오매칭 방지).
+    // 2026-09-10 추가(사용자 지시: "주요 재고 알림도 수정해야되 / S10 Slim 직배수 기준 15개로 나와" —
+    // #105에서 robotFullKey는 고쳤지만, 이 완화 매칭(2차) 패스는 그 함수를 거치지 않고 t.series/p.series
+    // 원본 필드를 직접 키에 섞어 쓰고 있어서 같은 버그(UBUS series='S10 MaxV Ultra' 같은 병합 셀 라벨이
+    // TM의 짧은 series='S10'과 어긋나 매칭 실패)가 그대로 남아 있었다 — "주요 재고 알림" 패널은 바로 이
+    // matchRobotOrWasher를 통해서만 TM+UBUS를 합치므로, 1차(엄격) 패스가 robotFullKey로 이미 고쳐졌어도
+    // 색상 없는 TM 품목(S10/S9 MaxV Slim 직배수 등, 바로 아래 rk.color==='' 조건에 걸리는 경우)은 전부
+    // 이 2차 완화 패스로 넘어가 여전히 옛 버그가 재현되고 있었다. robotFullKey와 동일하게
+    // robotSeriesTokenFromName(품목명 텍스트 기반)을 우선 쓰고 텍스트에서 못 찾을 때만 원본 필드로
+    // 폴백하도록 통일해 회귀 없이 수정한다.
     if (!isWasher) {
       tmCandidates.forEach((t, ti) => {
         if (usedTm[ti]) return;
         const rk = robotMatchKey(t.name);
         if (!rk || rk.color !== '') return;
-        const tKeyRelaxed = t.series + '|' + rk.variant + '|' + rk.pump;
+        const tSeriesKey = robotSeriesTokenFromName(t.name) || t.series;
+        const tKeyRelaxed = tSeriesKey + '|' + rk.variant + '|' + rk.pump;
         for (let pi = 0; pi < partnerCandidates.length; pi++) {
           if (usedPartner[pi]) continue;
           const p = partnerCandidates[pi];
           const prk = robotMatchKey(p.name);
           if (!prk) continue;
-          const pKeyRelaxed = p.series + '|' + prk.variant + '|' + prk.pump;
+          const pSeriesKey = robotSeriesTokenFromName(p.name) || p.series;
+          const pKeyRelaxed = pSeriesKey + '|' + prk.variant + '|' + prk.pump;
           if (pKeyRelaxed === tKeyRelaxed) { merged.push({ t, p }); usedTm[ti] = true; usedPartner[pi] = true; break; }
         }
       });
@@ -3360,7 +3406,18 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
       // 여전히 유지 — 시리즈 필터로 그 범위를 넓힐 수는 없고(예: S7 선택 시 이 알림엔 여전히 안 뜸), 좁히는
       // 방향으로만 동작(예: 시리즈=S10 선택 시 S9/S8은 빠지고 S10만 남음). "구분"(본품만/ACC 포함) 필터는
       // 이전과 동일하게 항상 완제품 기준으로 고정(kind 인자 '완제품' 유지, kindMode 무시).
-      const isRobotTarget = it => it.kind === '완제품' && it.major === '로봇청소기' && (it.series === 'S10' || it.series === 'S9' || it.series === 'S8');
+      // 2026-09-10 갱신(사용자 지시: "주요 재고 알림도 수정해야되 / S10 Slim 직배수 기준 15개로 나와") —
+      // 이 필터가 진짜 근본 원인이었다: it.series를 원본 필드 그대로 'S10'/'S9'/'S8'와 엄격 비교했는데,
+      // UBUS_DATA[].series는 원본 엑셀 병합 셀 값이라 "S10 MaxV Ultra"처럼 항상 길게 들어있어(TM처럼 짧은
+      // 'S10'이 아님) UBUS 쪽 후보가 이 시점에서 전부 걸러지고 있었다 — matchRobotOrWasher까지 UBUS 후보가
+      // 아예 도달하지 못했으니 그 안의 매칭 로직을 아무리 고쳐도 소용이 없었던 것. robotFullKey와 동일하게
+      // robotSeriesTokenFromName(품목명 텍스트 기반)을 우선 쓰고 텍스트에서 못 찾을 때만 원본 series로
+      // 폴백하도록 통일 — TM 쪽은 원래도 텍스트에서 정확히 같은 값이 뽑히므로 동작 변화 없음(회귀 없음).
+      const isRobotTarget = it => {
+        if (it.kind !== '완제품' || it.major !== '로봇청소기') return false;
+        const s = robotSeriesTokenFromName(it.name) || it.series;
+        return s === 'S10' || s === 'S9' || s === 'S8';
+      };
       const isStandTarget = it => it.kind === '완제품' && it.major === 'Stand 청소기' && it.series !== 'F25';
       const rows = [];
       const tmRobotCandidates = [];
@@ -4354,6 +4411,9 @@ function boot(TM_DATA, UBUS_DATA, WEIONE_DATA, WASHER_DATA, INBOUND_SCHEDULE, SO
   setupDescToggle('avail-desc-toggle-btn', 'avail-desc-body', 'tw_desc_avail');
   setupDescToggle('lowstock-desc-toggle-btn', 'lowstock-desc-body', 'tw_desc_lowstock');
   setupDescToggle('inbound-desc-toggle-btn', 'inbound-desc-body', 'tw_desc_inbound');
+  // 2026-09-10 추가(사용자 지시: "해당 문구도 숨겼다 볼수 있도록 해줘" — 모바일에서 상단 필터 안내 문구가
+  // 너무 길어 보이는 문제) — 창고·브랜드·카테고리·시리즈·제품 선택 방법 안내 문단도 동일한 토글 패턴 적용.
+  setupDescToggle('filter-scope-toggle-btn', 'filter-scope-note-body', 'tw_desc_filterscope');
 
   // 2026-08-28 갱신(28차, 사용자 지시): "입고예정" 탭 대개편.
   //  - "총 8월에는 몇 개, 9월에는 몇 개"처럼 제품별 월별 입고예정 합계를 한눈에 보여준다.
